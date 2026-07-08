@@ -1,0 +1,56 @@
+Package: bayesval
+Title: Bayesian Probabilistic Validation of Cox Prediction Models
+Version: 0.1.0
+Authors@R: c(
+    person("Willem M.", "Otte", email = "w.m.otte@umcutrecht.nl",
+           role = c("aut", "cre"), comment = c(ORCID = "0000-0003-1511-6834")),
+    person("Sem L.", "Kampman", role = "aut",
+           comment = c(ORCID = "0009-0004-2093-9389")))
+Description: Turns the standard discrimination/calibration validation of Cox
+    proportional-hazards models into a fully Bayesian, probabilistic procedure:
+    every validation quantity (Harrell/Uno/Gonen-Heller/Antolini concordance,
+    time-dependent AUC, calibration-in-the-large, slope, ICI/E50/E90,
+    D-calibration, IPCW Brier/IBS/IPA, R2_D, and decision-curve net benefit) is
+    reported as a posterior distribution with a credible interval. A single
+    estimation principle (evaluate any existing frequentist estimator at each
+    posterior draw) propagates model-parameter uncertainty; the Bayesian
+    bootstrap adds evaluation-sample uncertainty; calibration is assessed by a
+    posterior predictive check.
+License: MIT + file LICENSE
+URL: https://github.com/wmotte/bayesval
+BugReports: https://github.com/wmotte/bayesval/issues
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 8.0.0
+Depends:
+    R (>= 4.1)
+Imports:
+    survival,
+    stats,
+    methods,
+    tools,
+    dplyr,
+    purrr,
+    tibble,
+    ggplot2
+Suggests:
+    rstan,
+    rstanarm,
+    posterior,
+    loo,
+    digest,
+    polspline,
+    BART,
+    riskRegression,
+    pec,
+    timeROC,
+    survC1,
+    CPE,
+    dcurves,
+    ggdist,
+    bayesplot,
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.0.0
