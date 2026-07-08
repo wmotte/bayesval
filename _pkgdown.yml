@@ -1,0 +1,125 @@
+url: https://wmotte.github.io/bayesval/
+
+template:
+  bootstrap: 5
+
+home:
+  title: bayesval
+  description: >
+    Bayesian probabilistic validation of Cox proportional-hazards prediction
+    models — every discrimination, calibration, and clinical-utility metric
+    reported as a posterior distribution with a 95% credible interval.
+
+navbar:
+  structure:
+    left: [intro, reference, articles, news]
+    right: [search, github]
+  components:
+    articles:
+      text: Articles
+      menu:
+      - text: "Worked example (Rotterdam → GBSG)"
+        href: articles/worked_example.html
+      - text: "Showcase: small local cohort"
+        href: articles/showcase_small_cohort.html
+      - text: "Showcase: Mayo PBC cohort"
+        href: articles/showcase_pbc.html
+      - text: "-------"
+      - text: "Full-Bayes MCMC vs Cox-Laplace (pre-rendered)"
+        href: articles/small_sample_stan_vs_laplace.html
+
+articles:
+- title: Vignettes
+  contents:
+  - worked_example
+  - showcase_small_cohort
+  - showcase_pbc
+
+reference:
+- title: Model layer
+  desc: Fit a posterior survival object (psurv) from any backend
+  contents:
+  - fit_bayes_survival
+  - psurv_external
+  - psurv_from_coxph
+  - psurv_from_pwexp
+  - psurv_from_bart
+  - psurv_from_stan_surv
+  - fit_stan_pwexp
+  - stan_pwexp_predict
+  - new_psurv
+  - make_psurv_fitter
+
+- title: MCMC diagnostics and priors
+  contents:
+  - check_mcmc_gate
+  - mcmc_gate
+  - mcmc_diagnostics
+  - prior_sensitivity
+  - loo_survival
+
+- title: Caching
+  contents:
+  - fit_bayes_survival_cached
+  - psurv_cache_key
+  - save_psurv
+  - load_psurv
+  - clear_psurv_cache
+
+- title: Uncertainty propagation
+  desc: The one idea — propagate any frequentist estimator across the posterior
+  contents:
+  - propagate_metric
+  - propagate_many
+  - propagate_bootstrap
+  - posterior_table
+  - posterior_vs_frequentist
+  - variance_decomposition
+  - bb_weights
+  - bb_replicates
+  - bb_optimism
+
+- title: Discrimination metrics
+  contents:
+  - metric_harrell_c
+  - metric_uno_c
+  - metric_gonen_k
+  - metric_antolini_c
+  - metric_td_auc
+
+- title: Calibration metrics
+  contents:
+  - metric_citl
+  - metric_cal_slope
+  - metric_ici
+  - metric_dcalibration
+  - ppc_calibration
+  - plot_calibration_band
+
+- title: Overall performance
+  contents:
+  - metric_brier
+  - metric_ipa
+  - metric_r2d
+
+- title: Decision curve
+  contents:
+  - net_benefit_draw
+  - posterior_net_benefit
+  - plot_net_benefit
+
+- title: Configuration
+  contents:
+  - bc_config
+  - bc_horizons
+  - bc_tau
+
+- title: Plot helpers
+  contents:
+  - bc_palette
+  - theme_bayesval
+  - number_ticks
+
+- title: internal
+  contents:
+  - .BC_DEFAULTS

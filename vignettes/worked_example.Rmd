@@ -1,0 +1,149 @@
+---
+title: "Worked example: external validation of a Cox model"
+subtitle: "Rotterdam → GBSG breast-cancer cohorts"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Worked example: external validation of a Cox model}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      fig.width = 6.5, fig.height = 5)
+```
+
+This vignette applies the Bayesian validation framework end-to-end. We train a
+prognostic survival model on the **Rotterdam** breast-cancer cohort and
+**externally validate** it on the **GBSG** cohort at a clinically meaningful
+**5-year** horizon. Every validation quantity is reported as a **posterior
+median with a 95 % credible interval**, next to the usual frequentist estimate.
+
+> The analysis runs on the `coxph`-Laplace backend so it reproduces with only
+> the `survival` package. The primary full-Bayes path (`backend = "stan_pwexp"`)
+> is a drop-in replacement for the model-fitting step; everything downstream is
+> unchanged because it consumes only the model-agnostic `psurv` object.
+
+```{r load}
+library(survival)
+library(bayesval)
+YEAR <- 365.25
+```
+
+# Data: harmonising the two cohorts
+
+Recurrence-free survival is the Rotterdam endpoint (recurrence or death); GBSG
+records it directly. We harmonise the shared covariates (tumour size is
+categorised to match Rotterdam's factor).
+
+```{r data}
+prep <- function(df, time, status) {
+  size_cat <- if (is.factor(df$size)) df$size else
+    cut(df$size, breaks = c(-Inf, 20, 50, Inf),
+        labels = c("<=20", "20-50", ">50"))
+  tibble::tibble(time = df[[time]] / YEAR, status = df[[status]],
+                 age = df$age, nodes = df$nodes,
+                 grade3 = as.integer(df$grade >= 3),
+                 size = factor(size_cat, levels = c("<=20", "20-50", ">50")),
+                 logpgr = log(df$pgr + 1), hormon = df$hormon, meno = df$meno)
+}
+rot <- dplyr::mutate(rotterdam,
+                     rfs = as.integer(recur == 1 | death == 1),
+                     rfstime = ifelse(recur == 1, rtime, dtime))
+train <- prep(rot, "rfstime", "rfs")  |> tidyr::drop_na()
+test  <- prep(gbsg, "rfstime", "status") |> tidyr::drop_na()
+horizons <- c(2, 5); h5 <- 2L; tau <- 5
+```
+
+# Model layer: posterior survival on the external cohort
+
+Fit on Rotterdam, then evaluate the fitted model's Laplace posterior on GBSG.
+
+```{r fit}
+form <- Surv(time, status) ~ age + nodes + grade3 + size + logpgr + hormon + meno
+fit  <- coxph(form, data = train, x = TRUE, y = TRUE)
+ps   <- psurv_external(fit, test, time = "time", status = "status",
+                       horizons = horizons, S = 500L, seed = 2026)
+ps
+```
+
+# Posterior validation suite
+
+Each metric is propagated across the posterior with the Bayesian bootstrap, so
+the credible interval carries **both** model-parameter and evaluation-sample
+uncertainty.
+
+```{r suite}
+suite <- list(
+  harrell = metric_harrell_c,
+  uno     = function(d, w) metric_uno_c(d, w, tau = tau),
+  gonen   = metric_gonen_k,
+  citl    = function(d, w) metric_citl(d, w)[paste0("CITL_t", h5)],
+  slope   = metric_cal_slope,
+  ici     = function(d, w) metric_ici(d, w, horizon = h5, method = "auto"),
+  brier   = function(d, w) metric_brier(d, w)[c(paste0("Brier_t", h5), "IBS")],
+  ipa     = function(d, w) metric_ipa(d, w)[paste0("IPA_t", h5)],
+  r2d     = metric_r2d)
+post <- propagate_many(ps, suite, weights = "bootstrap", seed = 1)
+tab  <- posterior_table(post) |>
+  dplyr::mutate(metric = sub("^[^.]+\\.", "", metric))
+knitr::kable(dplyr::select(tab, metric, summary), caption =
+             "Posterior median [95% CrI] at 5 years (param + bootstrap)")
+```
+
+Discrimination is moderate (Harrell C ≈ 0.66, Uno C ≈ 0.65). The **calibration
+slope < 1** and **ICI ≈ 0.09** flag real external miscalibration — the model's
+risks need recalibration for this cohort, a conclusion discrimination alone
+cannot give.
+
+# Calibration as a posterior predictive check
+
+```{r ppc}
+ppc <- ppc_calibration(ps, horizon = h5, method = "auto", draws = 200L, seed = 3)
+plot_calibration_band(ppc)
+```
+
+# Decision-analytic layer
+
+```{r dca}
+pnb <- posterior_net_benefit(ps, thresholds = seq(0.1, 0.7, 0.05),
+                             horizon = h5, weights = "bootstrap",
+                             draws = 300L, seed = 4)
+plot_net_benefit(pnb, main = "GBSG posterior decision curve (5y)")
+```
+
+The model's net-benefit band lies above both "treat all" and "treat none" across
+clinically relevant thresholds, so it is decision-analytically useful despite the
+imperfect calibration.
+
+# Headline: Bayesian vs frequentist
+
+```{r headline}
+lp <- colMeans(ps$eta)
+dfv <- tibble::tibble(time = test$time, status = test$status)
+fw <- function(est, se) c(est, est - 1.96 * se, est + 1.96 * se)
+ch <- concordance(Surv(time, status) ~ lp, data = dfv)
+cu <- concordance(Surv(time, status) ~ lp, data = dfv, timewt = "n/G2", ymax = tau)
+cs <- coxph(Surv(time, status) ~ lp, data = dfv)
+freq <- tibble::tibble(
+  metric = c("C_harrell", "C_uno", "cal_slope"),
+  estimate = c(1 - ch$concordance, 1 - cu$concordance, coef(cs)[[1]]),
+  lower = c(fw(1 - ch$concordance, sqrt(ch$var))[2],
+            fw(1 - cu$concordance, sqrt(cu$var))[2],
+            fw(coef(cs)[[1]], sqrt(vcov(cs)[1, 1]))[2]),
+  upper = c(fw(1 - ch$concordance, sqrt(ch$var))[3],
+            fw(1 - cu$concordance, sqrt(cu$var))[3],
+            fw(coef(cs)[[1]], sqrt(vcov(cs)[1, 1]))[3]))
+knitr::kable(posterior_vs_frequentist(tab, freq),
+             caption = "Bayesian median [95% CrI] vs frequentist estimate [95% CI]")
+```
+
+The Bayesian posterior medians reproduce the frequentist point estimates (they
+use the same estimators), while the credible intervals additionally propagate
+model-parameter uncertainty — the coherent, probabilistic replacement for the
+usual bootstrap CI.
+
+> The primary full-Bayes MCMC path (`backend = "stan_pwexp"`) and internal
+> optimism correction are covered in the package's other articles.

@@ -1,0 +1,357 @@
+---
+title: "Showcase: deployment decisions in a small local cohort"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Showcase: deployment decisions in a small local cohort}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      fig.width = 6.5, fig.height = 5)
+```
+
+A published survival model must be validated in a **small, low-event local
+cohort** (n = 120, ~55% censored) before a clinic decides whether to deploy it.
+This is the single most common real external-validation situation, and the one
+where classical point-estimate-plus-CI reporting is weakest.
+
+This showcase makes three claims and backs each with numbers from a
+self-contained simulation where the truth is known throughout, so every claim
+is checkable against an oracle. It runs on the `coxph`-Laplace backend.
+
+- **Act 1** — in one such cohort the frequentist read-out is ambiguous: every
+  95% CI is so wide it spans "good" and "broken", so the deploy/reject decision
+  is a coin flip. The Bayesian framework returns the clinically actionable
+  quantities directly — P(discrimination adequate), P(calibration acceptable),
+  P(net clinical benefit > 0), P(net harm) — and a single **joint** deployment-gate
+  probability.
+- **Act 2** — that joint gate is genuinely not recoverable from separate
+  frequentist intervals: the metrics are correlated across the posterior, so the
+  honest joint probability differs materially from the naive product of
+  marginals.
+- **Act 3** — the Bayesian deployment probability is itself **calibrated**:
+  pooled over many simulated cohorts with known ground truth, when the gate says
+  "deploy-worthy with probability p", about a fraction p really are.
+
+```{r load}
+suppressMessages(library(survival))
+library(bayesval)
+```
+
+# Data-generating machinery
+
+We use a minimal proportional-hazards Weibull generator with known truth, so
+every claim below can be checked against an oracle.
+
+```{r dgm}
+sim_covariates <- function(n) {
+  tibble::tibble(x1 = stats::rnorm(n), x2 = stats::rbinom(n, 1, 0.4))
+}
+calibrate_censoring <- function(Tt, target) {
+  if (target <= 0) return(0)
+  f <- function(c) mean(exp(-c * Tt)) - (1 - target)
+  if (f(1e-6) < 0) return(1e-6)
+  hi <- 1e-6
+  while (f(hi) > 0 && hi < 1e6) hi <- hi * 2
+  stats::uniroot(f, c(1e-8, hi))$root
+}
+dgm_weibull <- function(n, beta, shape = 1.3, rate = 0.15, cens_rate = 0.3,
+                        x = NULL) {
+  if (is.null(x)) x <- sim_covariates(n)
+  lp <- as.numeric(beta["b1"] * x$x1 + beta["b2"] * x$x2)
+  U <- stats::runif(n)
+  Tt <- (1 / rate) * (-log(U) / exp(lp))^(1 / shape)
+  crate <- calibrate_censoring(Tt, cens_rate)
+  Cc <- if (crate <= 0) rep(Inf, n) else stats::rexp(n, crate)
+  time <- pmin(Tt, Cc); status <- as.integer(Tt <= Cc)
+  list(data = tibble::tibble(time = time, status = status, x1 = x$x1, x2 = x$x2),
+       lp = lp)
+}
+surv_weibull <- function(t, lp, shape, rate) exp(-((rate * t)^shape) * exp(lp))
+```
+
+# A published model and the clinic's decision rule
+
+The published model is developed on a large cohort; its coefficients and
+baseline hazard are fixed thereafter (this is what "externally validate"
+means).
+
+```{r published}
+HZ  <- c(3, 5); H5 <- 2L; TAU <- 5; PT <- 0.20  # threshold for the decision
+DEV_BETA  <- c(b1 = 0.70, b2 = -0.50)
+DEV_SHAPE <- 1.3; DEV_RATE <- 0.14
+set.seed(2026)
+dev <- dgm_weibull(4000, beta = DEV_BETA, shape = DEV_SHAPE, rate = DEV_RATE,
+                   cens_rate = 0.35)$data
+published <- coxph(Surv(time, status) ~ x1 + x2, data = dev, x = TRUE, y = TRUE)
+```
+
+The clinic's pre-specified **deployment gate** (fixed before seeing local data):
+(i) adequate discrimination, Harrell C ≥ 0.65; (ii) acceptable calibration,
+slope in [0.80, 1.25]; (iii) positive clinical value, net benefit at threshold
+`r PT` beats treat-all/none.
+
+```{r gate-bars}
+C_MIN <- 0.65; SLOPE_LO <- 0.80; SLOPE_HI <- 1.25
+
+published_predict <- function(fit, newdata, horizons) {
+  Terms <- stats::delete.response(stats::terms(fit))
+  mf <- stats::model.frame(Terms, newdata, xlev = fit$xlevels)
+  X  <- stats::model.matrix(Terms, mf, contrasts.arg = fit$contrasts)
+  X  <- X[, names(stats::coef(fit)), drop = FALSE]
+  eta <- as.numeric(X %*% stats::coef(fit))
+  bh  <- survival::basehaz(fit, centered = FALSE)
+  H0  <- stats::approx(bh$time, bh$hazard, xout = horizons,
+                       method = "constant", rule = 2, f = 0)$y
+  H0[is.na(H0)] <- 0
+  list(eta = eta, S = exp(-outer(exp(eta), H0)))
+}
+metric_dnb <- function(pt, h) function(draw, w) {
+  nb <- net_benefit_draw(draw, thresholds = pt, horizon = h, w = w)
+  c(NB_model = nb$model, dNB = nb$model - max(nb$all, 0))
+}
+oracle_worthy <- function(loc_beta, loc_rate, N = 5e4) {
+  ref <- dgm_weibull(N, beta = loc_beta, shape = DEV_SHAPE, rate = loc_rate,
+                     cens_rate = 0)
+  pp  <- published_predict(published, ref$data, HZ)
+  Strue  <- surv_weibull(HZ[H5], ref$lp, DEV_SHAPE, loc_rate)
+  risk_t <- 1 - Strue; risk_p <- 1 - pp$S[, H5]
+  oC  <- concordance(Surv(ref$data$time, rep(1, N)) ~ I(-pp$eta))$concordance
+  osl <- unname(coef(coxph(Surv(ref$data$time, rep(1, N)) ~ pp$eta))[["pp$eta"]])
+  odds <- PT / (1 - PT); pos <- risk_p >= PT
+  f <- mean(pos); r <- if (f > 0) mean(risk_t[pos]) else 0
+  nb_m <- if (f > 0) f * r - f * (1 - r) * odds else 0
+  r_all <- mean(risk_t); nb_all <- r_all - (1 - r_all) * odds
+  odnb <- nb_m - max(nb_all, 0)
+  list(C = oC, slope = osl, dNB = odnb,
+       worthy = (oC >= C_MIN) && (osl >= SLOPE_LO && osl <= SLOPE_HI) && (odnb > 0))
+}
+suite <- list(
+  harrell = metric_harrell_c,
+  uno     = function(d, w) metric_uno_c(d, w, tau = TAU),
+  slope   = metric_cal_slope,
+  ici     = function(d, w) metric_ici(d, w, horizon = H5, method = "auto")["ICI"],
+  ibs     = function(d, w) metric_brier(d, w)["IBS"],
+  nb      = metric_dnb(PT, H5))
+```
+
+# Act 1 — one small local cohort: frequentist ambiguity vs Bayesian answer
+
+Local truth: same signal, but a heavier baseline hazard than the development
+population (a sicker clinic) — the published model is mildly mis-calibrated
+here, which is realistic external validation, not a broken model.
+
+```{r act1-cohort}
+LOC_RATE <- 0.20
+local <- dgm_weibull(120, beta = DEV_BETA, shape = DEV_SHAPE, rate = LOC_RATE,
+                     cens_rate = 0.55)$data
+cat(sprintf("Local cohort: n = %d, events = %d (%.0f%% censored), horizon t* = %g y\n",
+            nrow(local), sum(local$status), 100 * mean(local$status == 0), HZ[H5]))
+ps <- psurv_external(published, local, time = "time", status = "status",
+                     horizons = HZ, S = 1000L, seed = 7)
+J  <- propagate_many(ps, suite, weights = "bootstrap", seed = 1)
+Jm <- unclass(J); colnames(Jm) <- sub("^[^.]+\\.", "", colnames(Jm))
+```
+
+## Frequentist read-out: point estimate [95% CI]
+
+```{r act1-freq}
+lp  <- colMeans(ps$eta)
+dfv <- tibble::tibble(time = local$time, status = local$status, lp = lp)
+wald <- function(est, se) c(est, est - 1.96 * se, est + 1.96 * se)
+ch <- concordance(Surv(time, status) ~ lp, data = dfv)
+fr_C <- wald(1 - ch$concordance, sqrt(ch$var))
+cs <- coxph(Surv(time, status) ~ lp, data = dfv)
+fr_slope <- wald(unname(coef(cs)), sqrt(vcov(cs)[1, 1]))
+
+mean_draw <- list(surv2d = matrix(colMeans(ps$surv), nrow = ps$n), eta = lp,
+                  time = local$time, status = local$status, horizons = HZ,
+                  n = ps$n, H = length(HZ))
+boot_ci <- function(fn, B = 400L, seed = 11) {
+  set.seed(seed); n <- ps$n
+  est <- as.numeric(fn(mean_draw, rep(1 / n, n)))
+  v <- replicate(B, {
+    idx <- sample.int(n, n, replace = TRUE)
+    db <- list(surv2d = mean_draw$surv2d[idx, , drop = FALSE], eta = lp[idx],
+               time = local$time[idx], status = local$status[idx],
+               horizons = HZ, n = n, H = length(HZ))
+    as.numeric(fn(db, rep(1 / n, n)))
+  })
+  c(est, stats::quantile(v, c(0.025, 0.975), names = FALSE))
+}
+fr_ici <- boot_ci(function(d, w) metric_ici(d, w, horizon = H5, method = "auto")["ICI"])
+fr_dnb <- boot_ci(function(d, w) metric_dnb(PT, H5)(d, w)["dNB"])
+
+frtab <- rbind(`Harrell C` = fr_C, `Calibration slope` = fr_slope,
+              `ICI (5y)` = fr_ici, `dNB @20% (vs default)` = fr_dnb)
+colnames(frtab) <- c("est", "lo", "hi")
+knitr::kable(round(frtab, 3), caption = "Frequentist point estimate [95% CI]")
+
+verdict <- function(lo, hi, need_lo = NA, need_hi = NA) {
+  ok_lo <- if (is.na(need_lo)) TRUE else lo >= need_lo
+  ok_hi <- if (is.na(need_hi)) TRUE else hi <= need_hi
+  bad_lo <- if (is.na(need_lo)) FALSE else hi < need_lo
+  bad_hi <- if (is.na(need_hi)) FALSE else lo > need_hi
+  if (ok_lo && ok_hi) "PASS" else if (bad_lo || bad_hi) "FAIL" else "AMBIGUOUS"
+}
+cat(sprintf("discrimination C>=%.2f: %s\n", C_MIN, verdict(fr_C[2], fr_C[3], need_lo = C_MIN)))
+cat(sprintf("calibration slope in [%.2f,%.2f]: %s\n", SLOPE_LO, SLOPE_HI,
+            verdict(fr_slope[2], fr_slope[3], need_lo = SLOPE_LO, need_hi = SLOPE_HI)))
+cat(sprintf("net benefit dNB>0: %s\n", verdict(fr_dnb[2], fr_dnb[3], need_lo = 0)))
+```
+
+The marginal-interval rule does not decide the deployment question.
+
+## Bayesian read-out: posteriors and actionable probabilities
+
+```{r act1-bayes}
+qi <- function(x) stats::quantile(x, c(0.025, 0.5, 0.975), names = FALSE)
+show <- c(C_harrell = "Harrell C", C_uno = "Uno C", cal_slope = "Calibration slope",
+          ICI = "ICI (5y)", IBS = "IBS", NB_model = "Net benefit @20%",
+          dNB = "dNB @20% (vs default)")
+post_tab <- purrr::map_dfr(names(show), function(col) {
+  q <- qi(Jm[, col])
+  tibble::tibble(metric = show[[col]], median = q[2], lo = q[1], hi = q[3])
+})
+knitr::kable(post_tab, digits = 3, caption = "Posterior median [95% CrI]")
+
+P_disc <- mean(Jm[, "C_harrell"] >= C_MIN)
+P_cal  <- mean(Jm[, "cal_slope"] >= SLOPE_LO & Jm[, "cal_slope"] <= SLOPE_HI)
+P_bene <- mean(Jm[, "dNB"] > 0)
+P_harm <- mean(Jm[, "dNB"] < 0)
+P_gate <- mean(Jm[, "C_harrell"] >= C_MIN &
+               Jm[, "cal_slope"] >= SLOPE_LO & Jm[, "cal_slope"] <= SLOPE_HI &
+               Jm[, "dNB"] > 0)
+cat(sprintf("P(discrimination adequate) = %.2f\n", P_disc))
+cat(sprintf("P(calibration acceptable)  = %.2f\n", P_cal))
+cat(sprintf("P(net clinical benefit)    = %.2f\n", P_bene))
+cat(sprintf("P(net harm)                = %.2f\n", P_harm))
+cat(sprintf("P(JOINT deployment gate)   = %.2f\n", P_gate))
+
+orc1 <- oracle_worthy(DEV_BETA, LOC_RATE)
+cat(sprintf("[oracle] C=%.2f slope=%.2f dNB=%+.3f => %s\n", orc1$C, orc1$slope,
+            orc1$dNB, if (orc1$worthy) "truly deploy-worthy" else "NOT deploy-worthy"))
+```
+
+The Bayesian gate reaches the correct decisive call where every frequentist
+interval was individually undecided.
+
+# Act 2 — the joint gate is not recoverable from separate intervals
+
+```{r act2}
+P_gate_indep <- P_disc * P_cal * P_bene
+rho_cs <- cor(Jm[, "cal_slope"], Jm[, "dNB"])
+rho_cc <- cor(Jm[, "C_harrell"], Jm[, "cal_slope"])
+cat(sprintf("joint gate, honest (coherent posterior) = %.3f\n", P_gate))
+cat(sprintf("joint gate, naive product of marginals  = %.3f\n", P_gate_indep))
+cat(sprintf("relative error of the naive shortcut     = %+.0f%%\n",
+            100 * (P_gate_indep - P_gate) / P_gate))
+cat(sprintf("posterior corr(slope, dNB) = %+.2f ; corr(C, slope) = %+.2f\n",
+            rho_cs, rho_cc))
+```
+
+The metrics move together across the posterior; a set of separate frequentist
+intervals throws this dependence away. Only a coherent joint posterior over all
+metrics at once carries it.
+
+```{r act2-fig, fig.width=6.5, fig.height=5.5}
+gate_lab <- c("gate passes (also dNB > 0)", "gate fails")
+joint_df <- tibble::tibble(
+  cal_slope = Jm[, "cal_slope"], C_harrell = Jm[, "C_harrell"],
+  gate = factor(ifelse(
+    Jm[, "C_harrell"] >= C_MIN & Jm[, "cal_slope"] >= SLOPE_LO &
+      Jm[, "cal_slope"] <= SLOPE_HI & Jm[, "dNB"] > 0,
+    gate_lab[1], gate_lab[2]), levels = gate_lab))
+ggplot2::ggplot(joint_df, ggplot2::aes(cal_slope, C_harrell, fill = gate)) +
+  ggplot2::geom_vline(xintercept = c(SLOPE_LO, SLOPE_HI), linetype = 2, colour = "gray40") +
+  ggplot2::geom_hline(yintercept = C_MIN, linetype = 2, colour = "gray40") +
+  ggplot2::geom_point(size = 1.6, alpha = 0.7, shape = 21, colour = "gray40", stroke = 0.3) +
+  ggplot2::scale_fill_manual(values = stats::setNames(bc_palette[c("blue", "orange")], gate_lab)) +
+  ggplot2::scale_x_continuous(breaks = number_ticks(6)) +
+  ggplot2::scale_y_continuous(breaks = number_ticks(6)) +
+  ggplot2::labs(x = "Calibration slope", y = "Harrell C", fill = NULL,
+                title = sprintf("Joint posterior over the deployment gate  (P(gate) = %.2f)", P_gate)) +
+  theme_bayesval()
+```
+
+# Act 3 — the deployment probability is calibrated against known truth
+
+Configurations spanning truly-worthy to truly-unworthy local cohorts, with a
+demo-scale sweep (kept small so this vignette builds quickly).
+
+```{r act3}
+CONFIGS <- list(
+  list(a = 1.10, rate = 0.14), list(a = 1.00, rate = 0.14),
+  list(a = 0.88, rate = 0.15), list(a = 0.75, rate = 0.16),
+  list(a = 0.60, rate = 0.20), list(a = 1.35, rate = 0.24))
+REPS <- 10L; N_LOC <- 120L
+
+rows <- list(); r <- 0L
+for (ci in seq_along(CONFIGS)) {
+  cf <- CONFIGS[[ci]]
+  lb <- DEV_BETA * cf$a
+  orc <- oracle_worthy(lb, cf$rate)
+  for (rep in seq_len(REPS)) {
+    r <- r + 1L
+    dat <- dgm_weibull(N_LOC, beta = lb, shape = DEV_SHAPE, rate = cf$rate,
+                       cens_rate = 0.55)$data
+    psr <- psurv_external(published, dat, time = "time", status = "status",
+                          horizons = HZ, S = 300L, seed = 1000L * ci + rep)
+    Jr <- unclass(propagate_many(psr, suite, weights = "bootstrap", seed = rep))
+    colnames(Jr) <- sub("^[^.]+\\.", "", colnames(Jr))
+    pg <- mean(Jr[, "C_harrell"] >= C_MIN &
+               Jr[, "cal_slope"] >= SLOPE_LO & Jr[, "cal_slope"] <= SLOPE_HI &
+               Jr[, "dNB"] > 0)
+    rows[[r]] <- tibble::tibble(config = ci, worthy = orc$worthy, p_deploy = pg)
+  }
+}
+D <- dplyr::bind_rows(rows)
+
+wilson_ci <- function(k, n, z = 1.96) {
+  if (n == 0) return(c(lo = NA_real_, hi = NA_real_))
+  p <- k / n; d <- 1 + z^2 / n
+  ctr <- (p + z^2 / (2 * n)) / d
+  hw  <- z * sqrt(p * (1 - p) / n + z^2 / (4 * n^2)) / d
+  c(lo = max(0, ctr - hw), hi = min(1, ctr + hw))
+}
+rel <- D |>
+  dplyr::mutate(bin = cut(p_deploy, seq(0, 1, by = 0.2), include.lowest = TRUE)) |>
+  dplyr::group_by(bin) |>
+  dplyr::summarise(mid = mean(p_deploy), emp = mean(worthy), n = dplyr::n(),
+                   .groups = "drop") |>
+  dplyr::filter(is.finite(mid)) |>
+  dplyr::mutate(
+    emp_lo = purrr::map2_dbl(round(emp * n), n, ~ wilson_ci(.x, .y)[["lo"]]),
+    emp_hi = purrr::map2_dbl(round(emp * n), n, ~ wilson_ci(.x, .y)[["hi"]]))
+knitr::kable(dplyr::select(rel, mid, emp, emp_lo, emp_hi, n), digits = 3,
+             caption = "Reliability of the Bayesian gate P(deploy-worthy) [Wilson 95%]")
+
+brier_bayes <- mean((D$p_deploy - D$worthy)^2)
+cat(sprintf("Probability Brier score of the gate vs truth: %.3f (lower is better)\n",
+            brier_bayes))
+```
+
+```{r act3-fig, fig.width=6.5, fig.height=5.5}
+ggplot2::ggplot(rel, ggplot2::aes(mid, emp)) +
+  ggplot2::geom_abline(slope = 1, intercept = 0, linetype = 2, colour = "gray50") +
+  ggplot2::geom_line(linewidth = 0.8, colour = bc_palette[["blue"]]) +
+  ggplot2::geom_errorbar(ggplot2::aes(ymin = emp_lo, ymax = emp_hi), width = 0.02,
+                         linewidth = 0.4, colour = bc_palette[["blue"]]) +
+  ggplot2::geom_point(ggplot2::aes(size = n), shape = 21, fill = bc_palette[["blue"]],
+                      colour = "gray40", stroke = 0.3) +
+  ggplot2::scale_size_area(name = "cohorts", max_size = 9) +
+  ggplot2::coord_cartesian(xlim = c(0, 1), ylim = c(0, 1)) +
+  ggplot2::scale_x_continuous(breaks = number_ticks(6)) +
+  ggplot2::scale_y_continuous(breaks = number_ticks(6)) +
+  ggplot2::labs(x = "Stated P(deploy-worthy)", y = "Empirical fraction truly worthy",
+                title = "Graded deployment probabilities rank cohorts by truth") +
+  theme_bayesval()
+```
+
+The Bayesian deployment probability ranks cohorts by true worthiness and tracks
+the diagonal — a graded, checkable confidence a dichotomous frequentist rule
+cannot offer.

@@ -17,11 +17,12 @@ Description: Turns the standard discrimination/calibration validation of Cox
     bootstrap adds evaluation-sample uncertainty; calibration is assessed by a
     posterior predictive check.
 License: MIT + file LICENSE
-URL: https://github.com/wmotte/bayesval
+URL: https://github.com/wmotte/bayesval, https://wmotte.github.io/bayesval/
 BugReports: https://github.com/wmotte/bayesval/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 8.0.0
+VignetteBuilder: knitr
 Depends:
     R (>= 4.1)
 Imports:
@@ -51,6 +52,7 @@ Suggests:
     bayesplot,
     knitr,
     rmarkdown,
+    pkgdown,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.0.0

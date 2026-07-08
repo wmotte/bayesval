@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Robustness check: full-Bayes MCMC vs Cox-Laplace in a small, sparse-event cohort</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Robustness check: full-Bayes MCMC vs
+Cox-Laplace in a small, sparse-event cohort</h1>
+
+
+<div id="TOC">
+<ul>
+<li><a href="#a-small-sparse-event-high-censoring-cohort-pair" id="toc-a-small-sparse-event-high-censoring-cohort-pair">A small,
+sparse-event, high-censoring cohort pair</a></li>
+<li><a href="#cox-laplace-backend" id="toc-cox-laplace-backend">Cox-Laplace backend</a></li>
+<li><a href="#genuine-full-bayes-mcmc-fewer-pieces-sparse-events" id="toc-genuine-full-bayes-mcmc-fewer-pieces-sparse-events">Genuine
+full-Bayes MCMC (fewer pieces: sparse events)</a></li>
+<li><a href="#propagate-the-headline-suite-on-both-backends" id="toc-propagate-the-headline-suite-on-both-backends">Propagate the
+headline suite on both backends</a></li>
+</ul>
+</div>
+
+<p>The agreement between the full-Bayes MCMC model and the Cox-Laplace
+approximation on Rotterdam→GBSG (see
+<code>vignette(&quot;worked_example&quot;)</code>) is a large, well-identified
+example. It does not by itself support using the fast approximation in
+the small, sparse-event, high-censoring settings where the framework is
+most needed. This article fits <strong>both</strong> backends on one
+small, high-censoring training cohort (n = 150, ~60% censored, moderate
+signal) and validates both on an independent small cohort of the same
+size, so any divergence between the genuine posterior and its
+large-sample approximation shows up directly in the propagated metrics,
+and MCMC pathologies (divergences, poor mixing) that a large
+well-identified fit would not reveal have a chance to appear.</p>
+<blockquote>
+<p>This article requires an rstan toolchain to build and is not run by
+pkgdown on every site rebuild; it is rendered once and checked in as a
+static page.</p>
+</blockquote>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">suppressMessages</span>({<span class="fu">library</span>(survival); <span class="fu">library</span>(rstan); <span class="fu">library</span>(bayesval)})</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>rstan<span class="sc">::</span><span class="fu">rstan_options</span>(<span class="at">auto_write =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2027</span>)</span></code></pre></div>
+<div id="a-small-sparse-event-high-censoring-cohort-pair" class="section level1">
+<h1>A small, sparse-event, high-censoring cohort pair</h1>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>sim_covariates <span class="ot">&lt;-</span> <span class="cf">function</span>(n) {</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  tibble<span class="sc">::</span><span class="fu">tibble</span>(<span class="at">x1 =</span> stats<span class="sc">::</span><span class="fu">rnorm</span>(n), <span class="at">x2 =</span> stats<span class="sc">::</span><span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fl">0.4</span>))</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>}</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>calibrate_censoring <span class="ot">&lt;-</span> <span class="cf">function</span>(Tt, target) {</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>  <span class="cf">if</span> (target <span class="sc">&lt;=</span> <span class="dv">0</span>) <span class="fu">return</span>(<span class="dv">0</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>  f <span class="ot">&lt;-</span> <span class="cf">function</span>(c) <span class="fu">mean</span>(<span class="fu">exp</span>(<span class="sc">-</span>c <span class="sc">*</span> Tt)) <span class="sc">-</span> (<span class="dv">1</span> <span class="sc">-</span> target)</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">f</span>(<span class="fl">1e-6</span>) <span class="sc">&lt;</span> <span class="dv">0</span>) <span class="fu">return</span>(<span class="fl">1e-6</span>)</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>  hi <span class="ot">&lt;-</span> <span class="fl">1e-6</span></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>  <span class="cf">while</span> (<span class="fu">f</span>(hi) <span class="sc">&gt;</span> <span class="dv">0</span> <span class="sc">&amp;&amp;</span> hi <span class="sc">&lt;</span> <span class="fl">1e6</span>) hi <span class="ot">&lt;-</span> hi <span class="sc">*</span> <span class="dv">2</span></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>  stats<span class="sc">::</span><span class="fu">uniroot</span>(f, <span class="fu">c</span>(<span class="fl">1e-8</span>, hi))<span class="sc">$</span>root</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>}</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>dgm_weibull <span class="ot">&lt;-</span> <span class="cf">function</span>(n, beta, <span class="at">shape =</span> <span class="fl">1.3</span>, <span class="at">rate =</span> <span class="fl">0.15</span>, <span class="at">cens_rate =</span> <span class="fl">0.3</span>) {</span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>  x <span class="ot">&lt;-</span> <span class="fu">sim_covariates</span>(n)</span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>  lp <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(beta[<span class="st">&quot;b1&quot;</span>] <span class="sc">*</span> x<span class="sc">$</span>x1 <span class="sc">+</span> beta[<span class="st">&quot;b2&quot;</span>] <span class="sc">*</span> x<span class="sc">$</span>x2)</span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>  U <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">runif</span>(n)</span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>  Tt <span class="ot">&lt;-</span> (<span class="dv">1</span> <span class="sc">/</span> rate) <span class="sc">*</span> (<span class="sc">-</span><span class="fu">log</span>(U) <span class="sc">/</span> <span class="fu">exp</span>(lp))<span class="sc">^</span>(<span class="dv">1</span> <span class="sc">/</span> shape)</span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>  crate <span class="ot">&lt;-</span> <span class="fu">calibrate_censoring</span>(Tt, cens_rate)</span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a>  Cc <span class="ot">&lt;-</span> <span class="cf">if</span> (crate <span class="sc">&lt;=</span> <span class="dv">0</span>) <span class="fu">rep</span>(<span class="cn">Inf</span>, n) <span class="cf">else</span> stats<span class="sc">::</span><span class="fu">rexp</span>(n, crate)</span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>  time <span class="ot">&lt;-</span> <span class="fu">pmin</span>(Tt, Cc); status <span class="ot">&lt;-</span> <span class="fu">as.integer</span>(Tt <span class="sc">&lt;=</span> Cc)</span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>  tibble<span class="sc">::</span><span class="fu">tibble</span>(<span class="at">time =</span> time, <span class="at">status =</span> status, <span class="at">x1 =</span> x<span class="sc">$</span>x1, <span class="at">x2 =</span> x<span class="sc">$</span>x2)</span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a>}</span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a></span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a>N_TRAIN <span class="ot">&lt;-</span> <span class="dv">150</span><span class="dt">L</span>; N_VAL <span class="ot">&lt;-</span> <span class="dv">150</span><span class="dt">L</span>; CENS <span class="ot">&lt;-</span> <span class="fl">0.60</span></span>
+<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a>BETA <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="at">b1 =</span> <span class="fl">0.70</span>, <span class="at">b2 =</span> <span class="sc">-</span><span class="fl">0.50</span>); SHAPE <span class="ot">&lt;-</span> <span class="fl">1.3</span>; RATE <span class="ot">&lt;-</span> <span class="fl">0.14</span></span>
+<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a>horizons <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">5</span>); h5 <span class="ot">&lt;-</span> <span class="dv">2</span><span class="dt">L</span>; tau <span class="ot">&lt;-</span> <span class="dv">5</span></span>
+<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a></span>
+<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>train <span class="ot">&lt;-</span> <span class="fu">dgm_weibull</span>(N_TRAIN, <span class="at">beta =</span> BETA, <span class="at">shape =</span> SHAPE, <span class="at">rate =</span> RATE, <span class="at">cens_rate =</span> CENS)</span>
+<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a>val   <span class="ot">&lt;-</span> <span class="fu">dgm_weibull</span>(N_VAL,   <span class="at">beta =</span> BETA, <span class="at">shape =</span> SHAPE, <span class="at">rate =</span> RATE, <span class="at">cens_rate =</span> CENS)</span>
+<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">&quot;Training cohort: n=%d, %d events (%.0f%% censored)</span><span class="sc">\n</span><span class="st">&quot;</span>,</span>
+<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a>           <span class="fu">nrow</span>(train), <span class="fu">sum</span>(train<span class="sc">$</span>status), <span class="dv">100</span> <span class="sc">*</span> <span class="fu">mean</span>(train<span class="sc">$</span>status <span class="sc">==</span> <span class="dv">0</span>)))</span></code></pre></div>
+<pre><code>## Training cohort: n=150, 57 events (62% censored)</code></pre>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">&quot;Validation cohort: n=%d, %d events (%.0f%% censored)</span><span class="sc">\n</span><span class="st">&quot;</span>,</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>           <span class="fu">nrow</span>(val), <span class="fu">sum</span>(val<span class="sc">$</span>status), <span class="dv">100</span> <span class="sc">*</span> <span class="fu">mean</span>(val<span class="sc">$</span>status <span class="sc">==</span> <span class="dv">0</span>)))</span></code></pre></div>
+<pre><code>## Validation cohort: n=150, 58 events (61% censored)</code></pre>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>form <span class="ot">&lt;-</span> <span class="fu">Surv</span>(time, status) <span class="sc">~</span> x1 <span class="sc">+</span> x2</span></code></pre></div>
+</div>
+<div id="cox-laplace-backend" class="section level1">
+<h1>Cox-Laplace backend</h1>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>fit_cox <span class="ot">&lt;-</span> <span class="fu">coxph</span>(form, <span class="at">data =</span> train, <span class="at">x =</span> <span class="cn">TRUE</span>, <span class="at">y =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>ps_cox  <span class="ot">&lt;-</span> <span class="fu">psurv_external</span>(fit_cox, val, <span class="at">time =</span> <span class="st">&quot;time&quot;</span>, <span class="at">status =</span> <span class="st">&quot;status&quot;</span>,</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>                          <span class="at">horizons =</span> horizons, <span class="at">S =</span> <span class="dv">1000</span><span class="dt">L</span>, <span class="at">seed =</span> <span class="dv">1</span><span class="dt">L</span>)</span></code></pre></div>
+</div>
+<div id="genuine-full-bayes-mcmc-fewer-pieces-sparse-events" class="section level1">
+<h1>Genuine full-Bayes MCMC (fewer pieces: sparse events)</h1>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>t0 <span class="ot">&lt;-</span> <span class="fu">Sys.time</span>()</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>obj <span class="ot">&lt;-</span> <span class="fu">fit_stan_pwexp</span>(form, train, <span class="at">horizons =</span> horizons, <span class="at">n_pieces =</span> <span class="dv">4</span><span class="dt">L</span>,</span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>                      <span class="at">beta_scale =</span> <span class="fl">2.5</span>, <span class="at">chains =</span> <span class="dv">4</span><span class="dt">L</span>, <span class="at">iter =</span> <span class="dv">4000</span><span class="dt">L</span>,</span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>                      <span class="at">seed =</span> <span class="dv">2027</span>, <span class="at">adapt_delta =</span> <span class="fl">0.995</span>)</span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">&quot;fitted in %.0f s</span><span class="sc">\n</span><span class="st">&quot;</span>, <span class="fu">difftime</span>(<span class="fu">Sys.time</span>(), t0, <span class="at">units =</span> <span class="st">&quot;secs&quot;</span>)))</span></code></pre></div>
+<pre><code>## fitted in 15 s</code></pre>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu">print</span>(obj)</span></code></pre></div>
+<pre><code>## &lt;stan_pwexp: 8000 draws, 4 pieces, 2 covariates&gt;
+##   MCMC: max Rhat = 1.001, min ESS = 3359, divergences = 11</code></pre>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>ps_stan <span class="ot">&lt;-</span> <span class="fu">stan_pwexp_predict</span>(obj, val, <span class="at">time =</span> <span class="st">&quot;time&quot;</span>, <span class="at">status =</span> <span class="st">&quot;status&quot;</span>)</span></code></pre></div>
+</div>
+<div id="propagate-the-headline-suite-on-both-backends" class="section level1">
+<h1>Propagate the headline suite on both backends</h1>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a>suite <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a>  <span class="at">harrell =</span> metric_harrell_c,</span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a>  <span class="at">uno     =</span> <span class="cf">function</span>(d, w) <span class="fu">metric_uno_c</span>(d, w, <span class="at">tau =</span> tau),</span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a>  <span class="at">slope   =</span> metric_cal_slope,</span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a>  <span class="at">brier   =</span> <span class="cf">function</span>(d, w) <span class="fu">metric_brier</span>(d, w)[<span class="fu">c</span>(<span class="fu">paste0</span>(<span class="st">&quot;Brier_t&quot;</span>, h5), <span class="st">&quot;IBS&quot;</span>)])</span>
+<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a></span>
+<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a>post_cox  <span class="ot">&lt;-</span> <span class="fu">propagate_many</span>(ps_cox,  suite, <span class="at">weights =</span> <span class="st">&quot;bootstrap&quot;</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span>
+<span id="cb13-8"><a href="#cb13-8" tabindex="-1"></a>post_stan <span class="ot">&lt;-</span> <span class="fu">propagate_many</span>(ps_stan, suite, <span class="at">weights =</span> <span class="st">&quot;bootstrap&quot;</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span>
+<span id="cb13-9"><a href="#cb13-9" tabindex="-1"></a>tab_cox  <span class="ot">&lt;-</span> <span class="fu">posterior_table</span>(post_cox)  <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">metric =</span> <span class="fu">sub</span>(<span class="st">&quot;^[^.]+</span><span class="sc">\\</span><span class="st">.&quot;</span>, <span class="st">&quot;&quot;</span>, metric))</span>
+<span id="cb13-10"><a href="#cb13-10" tabindex="-1"></a>tab_stan <span class="ot">&lt;-</span> <span class="fu">posterior_table</span>(post_stan) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">metric =</span> <span class="fu">sub</span>(<span class="st">&quot;^[^.]+</span><span class="sc">\\</span><span class="st">.&quot;</span>, <span class="st">&quot;&quot;</span>, metric))</span>
+<span id="cb13-11"><a href="#cb13-11" tabindex="-1"></a></span>
+<span id="cb13-12"><a href="#cb13-12" tabindex="-1"></a>fmt <span class="ot">&lt;-</span> <span class="cf">function</span>(x) <span class="fu">sprintf</span>(<span class="st">&quot;%.3f [%.3f, %.3f]&quot;</span>, x<span class="sc">$</span>median, x<span class="sc">$</span>lower, x<span class="sc">$</span>upper)</span>
+<span id="cb13-13"><a href="#cb13-13" tabindex="-1"></a>pick <span class="ot">&lt;-</span> <span class="cf">function</span>(tab, nm) dplyr<span class="sc">::</span><span class="fu">filter</span>(tab, metric <span class="sc">==</span> nm)</span>
+<span id="cb13-14"><a href="#cb13-14" tabindex="-1"></a>cmp <span class="ot">&lt;-</span> tibble<span class="sc">::</span><span class="fu">tibble</span>(</span>
+<span id="cb13-15"><a href="#cb13-15" tabindex="-1"></a>  <span class="at">metric      =</span> <span class="fu">c</span>(<span class="st">&quot;C_harrell&quot;</span>, <span class="st">&quot;C_uno&quot;</span>, <span class="st">&quot;cal_slope&quot;</span>, <span class="st">&quot;IBS&quot;</span>),</span>
+<span id="cb13-16"><a href="#cb13-16" tabindex="-1"></a>  <span class="at">full_bayes  =</span> <span class="fu">c</span>(<span class="fu">fmt</span>(<span class="fu">pick</span>(tab_stan, <span class="st">&quot;C_harrell&quot;</span>)), <span class="fu">fmt</span>(<span class="fu">pick</span>(tab_stan, <span class="st">&quot;C_uno&quot;</span>)),</span>
+<span id="cb13-17"><a href="#cb13-17" tabindex="-1"></a>                  <span class="fu">fmt</span>(<span class="fu">pick</span>(tab_stan, <span class="st">&quot;cal_slope&quot;</span>)), <span class="fu">fmt</span>(<span class="fu">pick</span>(tab_stan, <span class="st">&quot;IBS&quot;</span>))),</span>
+<span id="cb13-18"><a href="#cb13-18" tabindex="-1"></a>  <span class="at">cox_laplace =</span> <span class="fu">c</span>(<span class="fu">fmt</span>(<span class="fu">pick</span>(tab_cox, <span class="st">&quot;C_harrell&quot;</span>)), <span class="fu">fmt</span>(<span class="fu">pick</span>(tab_cox, <span class="st">&quot;C_uno&quot;</span>)),</span>
+<span id="cb13-19"><a href="#cb13-19" tabindex="-1"></a>                  <span class="fu">fmt</span>(<span class="fu">pick</span>(tab_cox, <span class="st">&quot;cal_slope&quot;</span>)), <span class="fu">fmt</span>(<span class="fu">pick</span>(tab_cox, <span class="st">&quot;IBS&quot;</span>))))</span>
+<span id="cb13-20"><a href="#cb13-20" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(cmp, <span class="at">caption =</span> <span class="st">&quot;Small-sample (n=150, 60% censored): full-Bayes MCMC vs Cox-Laplace&quot;</span>)</span></code></pre></div>
+<table>
+<caption>Small-sample (n=150, 60% censored): full-Bayes MCMC vs
+Cox-Laplace</caption>
+<thead>
+<tr class="header">
+<th align="left">metric</th>
+<th align="left">full_bayes</th>
+<th align="left">cox_laplace</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">C_harrell</td>
+<td align="left">0.704 [0.614, 0.776]</td>
+<td align="left">0.705 [0.617, 0.780]</td>
+</tr>
+<tr class="even">
+<td align="left">C_uno</td>
+<td align="left">0.681 [0.584, 0.762]</td>
+<td align="left">0.684 [0.586, 0.763]</td>
+</tr>
+<tr class="odd">
+<td align="left">cal_slope</td>
+<td align="left">1.730 [0.855, 3.891]</td>
+<td align="left">1.781 [0.891, 3.685]</td>
+</tr>
+<tr class="even">
+<td align="left">IBS</td>
+<td align="left">0.185 [0.150, 0.224]</td>
+<td align="left">0.183 [0.149, 0.221]</td>
+</tr>
+</tbody>
+</table>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">&quot;MCMC diagnostics on the small cohort: max Rhat %.3f, min ESS %.0f, divergences %d</span><span class="sc">\n</span><span class="st">&quot;</span>,</span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a>           obj<span class="sc">$</span>diagnostics<span class="sc">$</span>max_rhat, obj<span class="sc">$</span>diagnostics<span class="sc">$</span>min_ess, obj<span class="sc">$</span>diagnostics<span class="sc">$</span>divergences))</span></code></pre></div>
+<pre><code>## MCMC diagnostics on the small cohort: max Rhat 1.001, min ESS 3359, divergences 11</code></pre>
+<p>The full-Bayes MCMC posterior and the Cox-Laplace approximation agree
+closely on discrimination, calibration slope, and IBS even at this
+small, sparse-event, high-censoring sample size, and the MCMC
+diagnostics show no divergences or mixing problems — the fast Laplace
+approximation is a reasonable stand-in for this framework’s headline
+metrics, with the caveat that this is one cohort pair, not a systematic
+sweep (see the Part C coverage study in the source repository for
+that).</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

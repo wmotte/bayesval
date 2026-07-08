@@ -39,9 +39,6 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 
-# pkgdown site
-docs/
-
 # translation temp files
 po/*~
 
@@ -51,3 +48,7 @@ rsconnect/
 # compiled Stan model cache (non-portable across machines/R versions;
 # .stan_pwexp_model() recompiles and writes this next to the .stan file)
 inst/stan/*.rds
+
+# intermediate staging copy of pre-rendered articles (published copy lives in
+# docs/articles/, see articles/README.md)
+articles/_rendered/

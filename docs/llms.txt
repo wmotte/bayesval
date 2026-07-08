@@ -1,0 +1,354 @@
+# bayesval
+
+Bayesian probabilistic validation of Cox proportional-hazards prediction
+models. Every discrimination, calibration, and clinical-utility metric
+you would normally compute once — Harrell/Uno/Gonen-Heller/Antolini
+concordance, time-dependent AUC, calibration-in-the-large, calibration
+slope, ICI/E50/E90, D-calibration, IPCW Brier/IBS/IPA, R²_D,
+decision-curve net benefit — is instead reported as a **posterior
+distribution** with a 95% credible interval.
+
+The single idea behind the package: every validation metric `M` is a
+functional `M(S, data)` of a posterior survival object and the data.
+Evaluate the existing frequentist estimator at each posterior draw; the
+collection of per-draw values **is** the metric’s posterior. No new
+point estimators —
+[`propagate_metric()`](https://wmotte.github.io/bayesval/reference/propagate_metric.md)
+is the only wrapper. Two uncertainty sources are propagated coherently:
+model-parameter uncertainty (posterior draws) and evaluation-sample
+uncertainty (a Bayesian bootstrap over the validation set).
+
+## Installation
+
+``` r
+
+# install.packages("remotes")
+remotes::install_github("wmotte/bayesval")
+```
+
+The modelling core needs only `survival`; everything below works without
+a Stan toolchain via the `coxph` backend. The full-Bayes path (`rstan`),
+BART comparator (`BART`), and a few optional calibration/decision-curve
+estimators are Suggested, not required — install them only if you use
+that backend.
+
+## Quick start
+
+``` r
+
+library(bayesval)
+
+set.seed(1); n <- 500
+dat <- data.frame(x1 = rnorm(n), x2 = rbinom(n, 1, 0.4))
+dat$time   <- rexp(n, 0.15 * exp(0.8 * dat$x1 - 0.5 * dat$x2))
+dat$status <- rbinom(n, 1, 0.7)
+hz <- quantile(dat$time[dat$status == 1], c(.25, .5, .75))
+
+ps <- fit_bayes_survival(survival::Surv(time, status) ~ x1 + x2, dat, hz,
+                         backend = "coxph", S = 300)           # survival-only
+
+disc <- propagate_many(ps, list(harrell  = metric_harrell_c,
+                                uno      = metric_uno_c,
+                                antolini = metric_antolini_c))
+posterior_table(disc)                                          # median [95% CrI]
+
+propagate_metric(ps, metric_harrell_c, weights = "bootstrap")  # + eval-set uncertainty
+ppc_calibration(ps, horizon = 2)$ppp                            # calibration PPC
+posterior_net_benefit(ps)$p_useful                              # decision-curve layer
+```
+
+## Model backends
+
+Every backend returns the same model-agnostic `psurv` object (an
+`[S x n x H]` posterior survival array plus the linear predictor), so
+every metric above is backend-agnostic:
+
+| backend | needs | role |
+|----|----|----|
+| `stan_pwexp` | `rstan` | **primary** full-Bayes piecewise-exponential PH (MCMC) |
+| `pwexp` | `survival` | piecewise-exponential Poisson-trick PH (GLM + Laplace) |
+| `coxph` | `survival` | Cox-Laplace approximation (fast fallback / no Stan) |
+| `bart` | `BART` | nonparametric Bayesian survival comparator |
+| `stan_surv` | `rstanarm` w/ `stan_surv` | M-spline PH (aspirational; not yet in CRAN rstanarm) |
+
+MCMC fits are gated by
+[`check_mcmc_gate()`](https://wmotte.github.io/bayesval/reference/check_mcmc_gate.md)
+(Rhat \< 1.01, ESS, no divergences) before any metric is reported;
+[`prior_sensitivity()`](https://wmotte.github.io/bayesval/reference/prior_sensitivity.md)
+refits under several log-hazard-ratio prior scales to check robustness.
+
+## Documentation
+
+[`?propagate_metric`](https://wmotte.github.io/bayesval/reference/propagate_metric.md)
+is the entry point for writing a new metric; every `metric_*()` function
+follows the same `function(draw, w)` signature and can be passed to it
+directly. See the function reference
+([`help(package = "bayesval")`](https://rdrr.io/pkg/bayesval/man)) for
+the full API.
+
+## Citation and reproducibility
+
+`bayesval` is the software companion to:
+
+> Otte WM, Kampman SL, \[…\] *A Bayesian framework for validating
+> survival prediction models: posterior credible intervals for
+> discrimination, calibration, and clinical utility.* in prep.
+
+## License
+
+MIT © Willem M. Otte
+
+# Package index
+
+## Model layer
+
+Fit a posterior survival object (psurv) from any backend
+
+- [`fit_bayes_survival()`](https://wmotte.github.io/bayesval/reference/fit_bayes_survival.md)
+  :
+
+  Fit a Bayesian survival model and return a `psurv`.
+
+- [`psurv_external()`](https://wmotte.github.io/bayesval/reference/psurv_external.md)
+  : External-validation psurv: evaluate a coxph's Laplace posterior on
+  NEW data.
+
+- [`psurv_from_coxph()`](https://wmotte.github.io/bayesval/reference/psurv_from_coxph.md)
+  : Fallback constructor: posterior draws from a frequentist Cox fit.
+
+- [`psurv_from_pwexp()`](https://wmotte.github.io/bayesval/reference/psurv_from_pwexp.md)
+  : Piecewise-exponential (Poisson-trick) Bayesian PH model -\> psurv.
+
+- [`psurv_from_bart()`](https://wmotte.github.io/bayesval/reference/psurv_from_bart.md)
+  : BART survival (nonparametric Bayesian) model -\> psurv.
+
+- [`psurv_from_stan_surv()`](https://wmotte.github.io/bayesval/reference/psurv_from_stan_surv.md)
+  : Build a psurv from an rstanarm::stan_surv fit (the primary Bayesian
+  PH model).
+
+- [`fit_stan_pwexp()`](https://wmotte.github.io/bayesval/reference/fit_stan_pwexp.md)
+  : Fit a full-Bayes piecewise-exponential PH model and return a rich
+  object.
+
+- [`stan_pwexp_predict()`](https://wmotte.github.io/bayesval/reference/stan_pwexp_predict.md)
+  : External-validation psurv from a fitted stan_pwexp model on new
+  data.
+
+- [`new_psurv()`](https://wmotte.github.io/bayesval/reference/new_psurv.md)
+  : Construct a posterior survival object.
+
+- [`make_psurv_fitter()`](https://wmotte.github.io/bayesval/reference/make_psurv_fitter.md)
+  : Build a fit_psurv closure for bb_optimism(): function(data, weights)
+  -\> psurv.
+
+## MCMC diagnostics and priors
+
+- [`check_mcmc_gate()`](https://wmotte.github.io/bayesval/reference/check_mcmc_gate.md)
+  [`mcmc_gate()`](https://wmotte.github.io/bayesval/reference/check_mcmc_gate.md)
+  : Convergence gate: TRUE only if Rhat \< max_rhat, ESS \>= min_ess, no
+  divergences.
+
+- [`mcmc_diagnostics()`](https://wmotte.github.io/bayesval/reference/mcmc_diagnostics.md)
+  : MCMC convergence diagnostics for a fitted Bayesian survival model.
+
+- [`prior_sensitivity()`](https://wmotte.github.io/bayesval/reference/prior_sensitivity.md)
+  : Prior-sensitivity analysis (checklist 1): refit the primary
+  full-Bayes PH model (fit_stan_pwexp) under several log-HR prior SDs
+  and compare the posterior of each validation metric. A robust
+  conclusion should be stable across weakly-informative priors; a large
+  shift flags prior-dependence.
+
+- [`loo_survival()`](https://wmotte.github.io/bayesval/reference/loo_survival.md)
+  :
+
+  PSIS-LOO elpd from a pointwise log-likelihood matrix `[S x n]`.
+
+## Caching
+
+- [`fit_bayes_survival_cached()`](https://wmotte.github.io/bayesval/reference/fit_bayes_survival_cached.md)
+  : Fit a psurv with transparent disk caching.
+- [`psurv_cache_key()`](https://wmotte.github.io/bayesval/reference/psurv_cache_key.md)
+  : Deterministic cache key for a psurv fit from its defining inputs.
+- [`save_psurv()`](https://wmotte.github.io/bayesval/reference/save_psurv.md)
+  : Save a psurv to disk (creates the directory).
+- [`load_psurv()`](https://wmotte.github.io/bayesval/reference/load_psurv.md)
+  : Load a psurv from disk (validates the class).
+- [`clear_psurv_cache()`](https://wmotte.github.io/bayesval/reference/clear_psurv_cache.md)
+  : Remove cached psurv files.
+
+## Uncertainty propagation
+
+The one idea — propagate any frequentist estimator across the posterior
+
+- [`propagate_metric()`](https://wmotte.github.io/bayesval/reference/propagate_metric.md)
+  : Propagate a per-draw metric across the posterior (B2), optionally
+  with the Bayesian bootstrap (B3).
+
+- [`propagate_many()`](https://wmotte.github.io/bayesval/reference/propagate_many.md)
+  : Convenience: propagate several named metric functions in one pass
+  over the draws (cheaper than one pass each — the survival object is
+  only sliced once).
+
+- [`propagate_bootstrap()`](https://wmotte.github.io/bayesval/reference/propagate_bootstrap.md)
+  : Propagate a metric with the Bayesian bootstrap (B2 + B3 in one
+  call). Thin alias for propagate_metric(..., weights = "bootstrap").
+
+- [`posterior_table()`](https://wmotte.github.io/bayesval/reference/posterior_table.md)
+  :
+
+  Format a posterior_metric (or several) as a median `[95% CrI]` table.
+
+- [`posterior_vs_frequentist()`](https://wmotte.github.io/bayesval/reference/posterior_vs_frequentist.md)
+  : Side-by-side Bayesian vs frequentist headline table (Part D).
+
+- [`variance_decomposition()`](https://wmotte.github.io/bayesval/reference/variance_decomposition.md)
+  : Decompose posterior variance into parameter vs evaluation-sample
+  sources.
+
+- [`bb_weights()`](https://wmotte.github.io/bayesval/reference/bb_weights.md)
+  :
+
+  Generate a matrix of Bayesian-bootstrap weights `[S x n]` (rows sum to
+  1).
+
+- [`bb_replicates()`](https://wmotte.github.io/bayesval/reference/bb_replicates.md)
+  : Bayesian-bootstrap replicates of a metric on a SINGLE fixed
+  prediction set.
+
+- [`bb_optimism()`](https://wmotte.github.io/bayesval/reference/bb_optimism.md)
+  : Bayesian-bootstrap optimism correction for a scalar validation
+  metric.
+
+## Discrimination metrics
+
+- [`metric_harrell_c()`](https://wmotte.github.io/bayesval/reference/metric_harrell_c.md)
+  : Harrell's C (per draw). Wraps survival::concordance with case
+  weights.
+
+- [`metric_uno_c()`](https://wmotte.github.io/bayesval/reference/metric_uno_c.md)
+  : Uno's C (IPCW, truncated at tau) per draw. survival::concordance
+  with timewt = "n/G2" is the Uno estimator; ymax = tau truncates.
+
+- [`metric_gonen_k()`](https://wmotte.github.io/bayesval/reference/metric_gonen_k.md)
+  :
+
+  Gonen-Heller K (per draw) — model-based concordance from eta only, so
+  it is independent of the study censoring distribution. Closed form
+  (A1):
+  `K = sum_{i!=j} w_i w_j I(eta_i > eta_j) / (1 + exp(eta_j - eta_i))`
+  normalised by the pair weight mass. O(n^2); intended for moderate n.
+
+- [`metric_antolini_c()`](https://wmotte.github.io/bayesval/reference/metric_antolini_c.md)
+  : Antolini's time-dependent concordance (per draw) — A1.4. Uses the
+  model's time-specific survival: a usable pair (i event at Ytilde_i, j
+  later) is concordant when S_i(Ytilde_i) \< S_j(Ytilde_i), i.e. the
+  subject who failed had the lower predicted survival AT THAT TIME. For
+  a PH model this reduces to Harrell's C; for flexible / non-PH models
+  whose curves may cross it is the natural single summary. Survival at
+  the (arbitrary) event times is obtained by interpolating each
+  subject's cumulative hazard across the horizon knots.
+
+- [`metric_td_auc()`](https://wmotte.github.io/bayesval/reference/metric_td_auc.md)
+  : Time-dependent (cumulative/dynamic) AUC at each horizon, IPCW, per
+  draw. Cases: T_i \<= t & event; controls: T_j \> t. Uses the predicted
+  risk 1 - S_i(t) as the marker and IPCW weights G-hat from the
+  censoring KM.
+
+## Calibration metrics
+
+- [`metric_citl()`](https://wmotte.github.io/bayesval/reference/metric_citl.md)
+  : Calibration-in-the-large at each horizon (per draw): mean predicted
+  risk vs observed (weighted Kaplan-Meier) risk.
+
+- [`metric_cal_slope()`](https://wmotte.github.io/bayesval/reference/metric_cal_slope.md)
+  : Calibration slope (per draw): coefficient of a Cox model with eta as
+  the sole covariate. slope \< 1 signals overfitting (van Houwelingen
+  shrinkage).
+
+- [`metric_ici()`](https://wmotte.github.io/bayesval/reference/metric_ici.md)
+  : ICI / E50 / E90 at a horizon (per draw): mean / 50th / 90th
+  percentile of \|pi_i(t) - pi_hat^cal_i(t)\| (Austin, Harrell & van
+  Klaveren 2020).
+
+- [`metric_dcalibration()`](https://wmotte.github.io/bayesval/reference/metric_dcalibration.md)
+  :
+
+  D-calibration (per draw) — A2.6, Haider et al. (JMLR 2020).
+  Distributional calibration of the WHOLE predicted survival
+  distribution, not one horizon: if the model is calibrated, u_i =
+  S_i(T_i) is Uniform(0,1). Bin `[0,1]` into `bins` equal cells; an
+  event contributes 1 to its cell, a censored subject (known only that
+  its true u \< S_i(c_i)) spreads its unit mass uniformly over
+  `[0, S_i(c_i)]` across cells. The Pearson statistic vs the expected
+  count n/bins tests uniformity (chi-square, bins-1 df).
+
+- [`ppc_calibration()`](https://wmotte.github.io/bayesval/reference/ppc_calibration.md)
+  : Posterior predictive calibration check at a horizon.
+
+- [`plot_calibration_band()`](https://wmotte.github.io/bayesval/reference/plot_calibration_band.md)
+  : Plot a posterior calibration band from ppc_calibration() (ggplot2).
+
+## Overall performance
+
+- [`metric_brier()`](https://wmotte.github.io/bayesval/reference/metric_brier.md)
+  : IPCW Brier score at each horizon (per draw). BS(t) = sum_i w_i \*
+  Ŵ_i(t) \* (I(Ytilde_i \> t) - S_i(t))^2 Ŵ_i(t): 1/G(T_i-) for events
+  before t, 1/G(t) for survivors past t, 0 for subjects censored before
+  t.
+- [`metric_ipa()`](https://wmotte.github.io/bayesval/reference/metric_ipa.md)
+  : Index of Prediction Accuracy (scaled Brier) at each horizon (per
+  draw): IPA(t) = 1 - BS_model(t) / BS_null(t), null = marginal
+  Kaplan-Meier.
+- [`metric_r2d()`](https://wmotte.github.io/bayesval/reference/metric_r2d.md)
+  : Royston-Sauerbrei R^2_D (per draw) — explained variation from the
+  ordered linear predictor. D is the Cox coefficient on scaled normal
+  rankit scores. R^2_D = (D^2/kappa^2) / (pi^2/6 + D^2/kappa^2), kappa =
+  sqrt(8/pi).
+
+## Decision curve
+
+- [`net_benefit_draw()`](https://wmotte.github.io/bayesval/reference/net_benefit_draw.md)
+  : Net benefit across thresholds for a single draw.
+- [`posterior_net_benefit()`](https://wmotte.github.io/bayesval/reference/posterior_net_benefit.md)
+  : Posterior net-benefit curves over draws (B6).
+- [`plot_net_benefit()`](https://wmotte.github.io/bayesval/reference/plot_net_benefit.md)
+  : Plot posterior net-benefit bands from posterior_net_benefit()
+  (ggplot2).
+
+## Configuration
+
+- [`bc_config()`](https://wmotte.github.io/bayesval/reference/bc_config.md)
+  : Get the framework configuration, with optional per-call overrides.
+- [`bc_horizons()`](https://wmotte.github.io/bayesval/reference/bc_horizons.md)
+  : Resolve evaluation horizons from data (or return the configured
+  horizons).
+- [`bc_tau()`](https://wmotte.github.io/bayesval/reference/bc_tau.md) :
+  Resolve the truncation tau (largest horizon when cfg\$tau is NULL).
+
+## Plot helpers
+
+- [`bc_palette`](https://wmotte.github.io/bayesval/reference/bc_palette.md)
+  : Okabe-Ito colourblind-safe palette. Pick series colours by name;
+  never introduce ad-hoc colours. Reference/guide lines are grey (see
+  below).
+
+- [`theme_bayesval()`](https://wmotte.github.io/bayesval/reference/theme_bayesval.md)
+  : The house theme: theme_classic() with a top legend and bold facet
+  strips.
+
+- [`number_ticks()`](https://wmotte.github.io/bayesval/reference/number_ticks.md)
+  :
+
+  pretty()-based axis ticks. Use as
+  `scale_*_continuous(breaks = number_ticks(6))`.
+
+# Articles
+
+### Vignettes
+
+- [Worked example: external validation of a Cox
+  model](https://wmotte.github.io/bayesval/articles/worked_example.md):
+- [Showcase: deployment decisions in a small local
+  cohort](https://wmotte.github.io/bayesval/articles/showcase_small_cohort.md):
+- [Showcase: real-world deployment decision on the Mayo PBC
+  cohort](https://wmotte.github.io/bayesval/articles/showcase_pbc.md):
