@@ -105,14 +105,29 @@ fit_stan_pwexp <- function(formula, data, horizons, n_pieces = 8L,
                          refresh = refresh,
                          control = list(adapt_delta = adapt_delta))
 
-  # Extract beta and log_h0 in a SINGLE permuted call: rstan::extract() draws a
-  # fresh permutation on every call, so two separate permuted=TRUE calls return
-  # MISALIGNED draws (beta row s and log_h0 row s would be different posterior
-  # draws). One call shares the permutation, keeping (beta, log_h0) aligned per
-  # draw---essential because the centering shift and the survival array pair them.
-  .ext <- rstan::extract(fit, pars = c("beta", "log_h0"), permuted = TRUE)
-  beta   <- as.matrix(.ext$beta)
-  log_h0 <- as.matrix(.ext$log_h0)
+  # permuted = FALSE, and not the more usual permuted = TRUE. rstan::extract()
+  # draws a FRESH permutation of the draws on every permuted call, taken from R's
+  # RNG, and `seed` does not reach it. The draw SET is unaffected, so posterior
+  # medians move by ~1e-4, and the draw ORDER is: every downstream step that pairs
+  # draw s with a second random object -- the Dirichlet(1) weights of the Bayesian
+  # bootstrap, the 200-draw subsample of the posterior predictive check -- pairs
+  # differently on each run. That made the reported PPC p-value swing between 0.00
+  # and 0.06 across identical runs of the same seeded script.
+  #
+  # permuted = FALSE returns an [iterations x chains x parameters] array in
+  # sampling order. Stacking it chain-major is deterministic, and pulling both
+  # parameters from the one array keeps beta row s and log_h0 row s on the same
+  # posterior draw, which the centering shift and the survival array rely on.
+  .ext <- rstan::extract(fit, pars = c("beta", "log_h0"), permuted = FALSE)
+  .stack <- function(a, nm) {
+    sel <- grep(paste0("^", nm, "\\["), dimnames(a)$parameters)
+    # a[, , sel] vectorises iterations fastest, then chains: column j of the result
+    # is parameter j's draws, chain 1's iterations first, then chain 2's.
+    matrix(a[, , sel, drop = FALSE], nrow = dim(a)[1L] * dim(a)[2L],
+           ncol = length(sel))
+  }
+  beta   <- .stack(.ext, "beta")
+  log_h0 <- .stack(.ext, "log_h0")
   # Back-transform draws from the standardised sampling space to the ORIGINAL
   # covariate units, so eta_i = X_raw_i %*% beta and S(t) are reproduced directly
   # from (beta_draws, log_h0_draws) with the raw design (no stored scaling

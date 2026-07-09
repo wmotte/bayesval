@@ -83,3 +83,29 @@ test_that("MCMC diagnostics gate runs on a real stanfit", {
   # divergence count now resolves for a raw/attached stanfit (not NA).
   expect_false(is.na(d$n_divergent))
 })
+
+test_that("the same seed gives byte-identical draws, in the same order", {
+  skip_if_not_installed("rstan")
+  wd <- setwd(normalizePath(file.path("..", ".."))); on.exit(setwd(wd), add = TRUE)
+  set.seed(11); n <- 200
+  x1 <- rnorm(n); x2 <- rbinom(n, 1, 0.4)
+  T <- rexp(n, 0.15 * exp(0.8 * x1 - 0.5 * x2)); C <- rexp(n, 0.10)
+  dat <- data.frame(time = pmin(T, C), status = as.integer(T <= C), x1, x2)
+  hz <- as.numeric(quantile(dat$time[dat$status == 1], c(0.5, 0.75)))
+
+  fit_once <- function()
+    fit_stan_pwexp(Surv(time, status) ~ x1 + x2, dat, hz, n_pieces = 5L,
+                   chains = 2L, iter = 600L, seed = 42L)
+  a <- fit_once()
+  # Deliberately disturb the ambient RNG between the two fits. rstan::extract()
+  # used to permute the draws with R's RNG, un-seeded, so the draw SET reproduced
+  # while the draw ORDER did not. Everything that pairs draw s with a second
+  # random object -- Dirichlet(1) bootstrap weights, the PPC's draw subsample --
+  # then moved between runs, and the reported PPC p-value swung from 0.00 to 0.06.
+  runif(1000)
+  b <- fit_once()
+
+  expect_identical(a$beta_draws, b$beta_draws)
+  expect_identical(a$log_h0_draws, b$log_h0_draws)
+  expect_identical(a$psurv$surv, b$psurv$surv)
+})
