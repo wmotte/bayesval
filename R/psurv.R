@@ -116,6 +116,28 @@ psurv_from_stan_surv <- function(fit, newdata, time, status, horizons,
   stop("Unexpected posterior_survfit shape.")
 }
 
+# Evaluate a Breslow baseline cumulative hazard at validation horizons.
+.basehaz_at_horizons <- function(bh, horizons) {
+  ok <- is.finite(bh$time) & is.finite(bh$hazard)
+  time <- bh$time[ok]
+  hazard <- bh$hazard[ok]
+  if (!length(time)) return(rep(0, length(horizons)))
+
+  ord <- order(time)
+  time <- c(0, time[ord])
+  hazard <- c(0, hazard[ord])
+  keep <- !duplicated(time, fromLast = TRUE)
+  time <- time[keep]
+  hazard <- hazard[keep]
+
+  if (length(time) == 1L) return(rep(hazard[[1]], length(horizons)))
+
+  out <- stats::approx(x = time, y = hazard, xout = horizons,
+                       method = "constant", rule = 2, f = 0)$y
+  out[is.na(out)] <- 0
+  out
+}
+
 #' Fallback constructor: posterior draws from a frequentist Cox fit.
 #'
 #' This is the framework's *testing harness* and a legitimate large-sample
@@ -152,9 +174,7 @@ psurv_from_coxph <- function(formula, data, horizons, S = 500L,
 
   # Breslow baseline cumulative hazard H0(t) at the MLE, evaluated at horizons.
   bh  <- survival::basehaz(fit, centered = FALSE)  # cols: hazard, time
-  H0h <- stats::approx(x = bh$time, y = bh$hazard, xout = horizons,
-                       method = "constant", rule = 2, f = 0)$y
-  H0h[is.na(H0h)] <- 0
+  H0h <- .basehaz_at_horizons(bh, horizons)
 
   # Observed response.
   y      <- fit$y

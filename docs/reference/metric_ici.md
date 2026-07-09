@@ -27,7 +27,11 @@ metric_ici(draw, w = NULL, horizon = NULL, method = c("auto", "hare", "group"))
 
 - method:
 
-  "auto" (hare if installed else group), "hare", or "group".
+  "auto" (hare if installed else group), "hare", or "group". The grouped
+  method is fully case-weighted. HARE smoothing is unweighted because
+  [`polspline::hare()`](https://rdrr.io/pkg/polspline/man/hare.html) has
+  no case-weight argument; the final ICI/E50/E90 aggregation still uses
+  `w`.
 
 ## Value
 

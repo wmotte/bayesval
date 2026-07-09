@@ -111,9 +111,7 @@ psurv_external <- function(fit, newdata, time, status, horizons, S = 500L,
 
   beta_draws <- .rmvn(S, fit$coefficients, as.matrix(stats::vcov(fit)))
   bh  <- survival::basehaz(fit, centered = FALSE)
-  H0h <- stats::approx(bh$time, bh$hazard, xout = horizons,
-                       method = "constant", rule = 2, f = 0)$y
-  H0h[is.na(H0h)] <- 0
+  H0h <- .basehaz_at_horizons(bh, horizons)
 
   eta  <- beta_draws %*% t(X)
   surv <- array(NA_real_, dim = c(S, nrow(X), length(horizons)))
@@ -131,9 +129,7 @@ psurv_external <- function(fit, newdata, time, status, horizons, S = 500L,
   V <- as.matrix(stats::vcov(fit))
   beta_draws <- .rmvn(S, beta_hat, V)
   bh <- survival::basehaz(fit, centered = FALSE)
-  H0h <- stats::approx(bh$time, bh$hazard, xout = horizons,
-                       method = "constant", rule = 2, f = 0)$y
-  H0h[is.na(H0h)] <- 0
+  H0h <- .basehaz_at_horizons(bh, horizons)
   y <- fit$y; time <- y[, 1L]; status <- y[, ncol(y)]
   eta <- beta_draws %*% t(X)
   surv <- array(NA_real_, dim = c(S, n, length(horizons)))

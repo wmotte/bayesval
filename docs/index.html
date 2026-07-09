@@ -11,9 +11,9 @@
 <script src="deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="bayesval">
-<meta name="description" content="Bayesian probabilistic validation of Cox proportional-hazards prediction models — every discrimination, calibration, and clinical-utility metric reported as a posterior distribution with a 95% credible interval.
+<meta name="description" content="Bayesian validation for Cox proportional-hazards prediction models: propagate finite-sample discrimination, calibration, performance, and clinical-utility estimators across posterior survival draws and report the induced uncertainty.
 ">
-<meta property="og:description" content="Bayesian probabilistic validation of Cox proportional-hazards prediction models — every discrimination, calibration, and clinical-utility metric reported as a posterior distribution with a 95% credible interval.
+<meta property="og:description" content="Bayesian validation for Cox proportional-hazards prediction models: propagate finite-sample discrimination, calibration, performance, and clinical-utility estimators across posterior survival draws and report the induced uncertainty.
 ">
 </head>
 <body>
@@ -41,6 +41,7 @@
     <li><a class="dropdown-item" href="articles/showcase_small_cohort.html">Showcase: small local cohort</a></li>
     <li><a class="dropdown-item" href="articles/showcase_pbc.html">Showcase: Mayo PBC cohort</a></li>
     <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item" href="articles/worked_example_stan.html">Worked example with the full-Bayes model (pre-rendered)</a></li>
     <li><a class="dropdown-item" href="articles/small_sample_stan_vs_laplace.html">Full-Bayes MCMC vs Cox-Laplace (pre-rendered)</a></li>
   </ul>
 </li>
@@ -60,15 +61,15 @@
   <main id="main" class="col-md-9"><div class="section level1">
 <div class="page-header"><h1 id="bayesval">bayesval<a class="anchor" aria-label="anchor" href="#bayesval"></a>
 </h1></div>
-<p>Bayesian probabilistic validation of Cox proportional-hazards prediction models. Every discrimination, calibration, and clinical-utility metric you would normally compute once — Harrell/Uno/Gonen-Heller/Antolini concordance, time-dependent AUC, calibration-in-the-large, calibration slope, ICI/E50/E90, D-calibration, IPCW Brier/IBS/IPA, R²_D, decision-curve net benefit — is instead reported as a <strong>posterior distribution</strong> with a 95% credible interval.</p>
-<p>The single idea behind the package: every validation metric <code>M</code> is a functional <code>M(S, data)</code> of a posterior survival object and the data. Evaluate the existing frequentist estimator at each posterior draw; the collection of per-draw values <strong>is</strong> the metric’s posterior. No new point estimators — <code><a href="reference/propagate_metric.html">propagate_metric()</a></code> is the only wrapper. Two uncertainty sources are propagated coherently: model-parameter uncertainty (posterior draws) and evaluation-sample uncertainty (a Bayesian bootstrap over the validation set).</p>
+<p>Bayesian posterior-propagation for performance assessment of Cox proportional-hazards prediction models. Each finite-sample performance estimator you would normally compute once — Harrell/Uno/Gonen-Heller/Antolini concordance, time-dependent AUC, calibration-in-the-large, calibration slope, ICI/E50/E90, D-calibration, IPCW Brier/IBS/IPA, R²_D, decision-curve net benefit — is evaluated over posterior survival draws and reported as an induced posterior distribution with a 95% credible interval.</p>
+<p>The single idea behind the package: every performance estimator <code>M</code> is a functional <code>M(S, data)</code> of a posterior survival object and the data. Evaluate the existing estimator at each posterior draw; the collection of per-draw values is the posterior distribution induced for that finite-sample estimator. No new point estimators: <code><a href="reference/propagate_metric.html">propagate_metric()</a></code> is the propagation wrapper. Two uncertainty sources are kept explicit: model-parameter uncertainty (posterior draws) and evaluation-sample uncertainty (a Bayesian bootstrap over the validation set).</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("remotes")</span></span>
 <span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"wmotte/bayesval"</span><span class="op">)</span></span></code></pre></div>
-<p>The modelling core needs only <code>survival</code>; everything below works without a Stan toolchain via the <code>coxph</code> backend. The full-Bayes path (<code>rstan</code>), BART comparator (<code>BART</code>), and a few optional calibration/decision-curve estimators are Suggested, not required — install them only if you use that backend.</p>
+<p>The modelling core needs only <code>survival</code>; everything below works without a Stan toolchain via the <code>coxph</code> backend. The full-likelihood MCMC path (<code>rstan</code>), BART comparator (<code>BART</code>), and a few optional calibration/decision-curve estimators are Suggested, not required — install them only if you use that backend.</p>
 </div>
 <div class="section level2">
 <h2 id="quick-start">Quick start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
@@ -113,8 +114,7 @@
 <tr>
 <td><code>stan_pwexp</code></td>
 <td><code>rstan</code></td>
-<td>
-<strong>primary</strong> full-Bayes piecewise-exponential PH (MCMC)</td>
+<td>primary full-likelihood Bayesian piecewise-exponential PH (MCMC)</td>
 </tr>
 <tr>
 <td><code>pwexp</code></td>
@@ -145,7 +145,7 @@
 <div class="section level2">
 <h2 id="documentation">Documentation<a class="anchor" aria-label="anchor" href="#documentation"></a>
 </h2>
-<p><code><a href="reference/propagate_metric.html">?propagate_metric</a></code> is the entry point for writing a new metric; every <code>metric_*()</code> function follows the same <code>function(draw, w)</code> signature and can be passed to it directly. See the function reference (<code><a href="https://rdrr.io/pkg/bayesval/man" class="external-link">help(package = "bayesval")</a></code>) for the full API.</p>
+<p><code><a href="reference/propagate_metric.html">?propagate_metric</a></code> is the entry point for writing a new metric; every <code>metric_*()</code> function follows the same <code>function(draw, w)</code> signature. <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> also audits non-finite posterior draws and flags metrics with more than 5% non-finite values. Metrics can be passed to it directly. See the function reference (<code><a href="https://rdrr.io/pkg/bayesval/man" class="external-link">help(package = "bayesval")</a></code>) for the full API.</p>
 </div>
 <div class="section level2">
 <h2 id="citation-and-reproducibility">Citation and reproducibility<a class="anchor" aria-label="anchor" href="#citation-and-reproducibility"></a>

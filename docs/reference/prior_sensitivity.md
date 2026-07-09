@@ -1,4 +1,4 @@
-# Prior-sensitivity analysis (checklist 1): refit the primary full-Bayes PH model (fit_stan_pwexp) under several log-HR prior SDs and compare the posterior of each validation metric. A robust conclusion should be stable across weakly-informative priors; a large shift flags prior-dependence.
+# Prior-sensitivity analysis (checklist 1): refit the primary Bayesian PH model (fit_stan_pwexp) under several log-HR prior SDs and compare the posterior of each performance estimator. A robust conclusion should be stable across weakly-informative priors; a large shift flags prior-dependence.
 
 Uses `beta_scale` (the Normal(0, beta_scale) SD on the
 log-hazard-ratios) as the prior knob — the working analogue of

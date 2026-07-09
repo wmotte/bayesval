@@ -124,7 +124,7 @@ cat(sprintf("calibration slope in [%.2f,%.2f]: %s\n", SLOPE_LO, SLOPE_HI,
 cat(sprintf("net benefit dNB>0: %s\n", verdict(fr_dnb[2], fr_dnb[3], need_lo = 0)))
 ```
 
-# Bayesian read-out: posteriors and actionable probabilities
+# Bayesian read-out: posteriors and deployment probabilities
 
 ```{r bayes}
 J <- propagate_many(ps, suite, weights = "bootstrap", seed = 1)
@@ -157,5 +157,13 @@ cat(sprintf("P(JOINT deployment gate)   = %.2f\n", P_gate))
 ```
 
 Even in this small, real validation cohort, the coherent joint posterior turns
-several individually ambiguous frequentist intervals into a single actionable
-deployment probability.
+several individually ambiguous frequentist intervals into a single deployment
+probability.
+
+## Citation
+
+`bayesval` is the software companion to:
+
+> Otte WM, Kampman SL, [...] *A Bayesian framework for validating survival
+> prediction models: posterior credible intervals for discrimination,
+> calibration, and clinical utility.* in prep.

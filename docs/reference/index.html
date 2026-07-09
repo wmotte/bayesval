@@ -22,6 +22,7 @@
     <li><a class="dropdown-item" href="../articles/showcase_small_cohort.html">Showcase: small local cohort</a></li>
     <li><a class="dropdown-item" href="../articles/showcase_pbc.html">Showcase: Mayo PBC cohort</a></li>
     <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item" href="../articles/worked_example_stan.html">Worked example with the full-Bayes model (pre-rendered)</a></li>
     <li><a class="dropdown-item" href="../articles/small_sample_stan_vs_laplace.html">Full-Bayes MCMC vs Cox-Laplace (pre-rendered)</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -146,7 +147,7 @@
           <code><a href="prior_sensitivity.html">prior_sensitivity()</a></code>
 
         </dt>
-        <dd>Prior-sensitivity analysis (checklist 1): refit the primary full-Bayes PH model (fit_stan_pwexp) under several log-HR prior SDs and compare the posterior of each validation metric. A robust conclusion should be stable across weakly-informative priors; a large shift flags prior-dependence.</dd>
+        <dd>Prior-sensitivity analysis (checklist 1): refit the primary Bayesian PH model (fit_stan_pwexp) under several log-HR prior SDs and compare the posterior of each performance estimator. A robust conclusion should be stable across weakly-informative priors; a large shift flags prior-dependence.</dd>
 
         <dt>
 
@@ -269,7 +270,7 @@
           <code><a href="bb_optimism.html">bb_optimism()</a></code>
 
         </dt>
-        <dd>Bayesian-bootstrap optimism correction for a scalar validation metric.</dd>
+        <dd>Bayesian-bootstrap optimism correction for a scalar performance estimator.</dd>
       </dl></div><div class="section level2">
       <h2 id="discrimination-metrics">Discrimination metrics<a class="anchor" aria-label="anchor" href="#discrimination-metrics"></a></h2>
 

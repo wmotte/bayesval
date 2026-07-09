@@ -118,6 +118,7 @@ ppc_calibration <- function(ps, horizon = NULL,
 #' Sample n times from a KM survival curve by inverse transform.
 #' @keywords internal
 .sim_from_km <- function(km, n) {
+  if (!length(km$time)) return(rep(Inf, n))
   u <- stats::runif(n)
   # survival curve is decreasing in time; find t with S(t) = u.
   tt <- c(0, km$time); ss <- c(1, km$surv)
@@ -134,7 +135,10 @@ ppc_calibration <- function(ps, horizon = NULL,
 #' interpolation (for building calibration bands).
 #' @keywords internal
 .curve_on_grid <- function(pred, obs, grid) {
-  o <- order(pred)
-  stats::approx(x = pred[o], y = obs[o], xout = grid, rule = 2,
+  ok <- is.finite(pred) & is.finite(obs)
+  if (sum(ok) < 2L) return(rep(if (any(ok)) obs[which(ok)[1L]] else NA_real_,
+                                length(grid)))
+  o <- order(pred[ok])
+  stats::approx(x = pred[ok][o], y = obs[ok][o], xout = grid, rule = 2,
                 ties = mean)$y
 }

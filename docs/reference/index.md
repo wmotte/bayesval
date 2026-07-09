@@ -52,11 +52,11 @@ Fit a posterior survival object (psurv) from any backend
   : MCMC convergence diagnostics for a fitted Bayesian survival model.
 
 - [`prior_sensitivity()`](https://wmotte.github.io/bayesval/reference/prior_sensitivity.md)
-  : Prior-sensitivity analysis (checklist 1): refit the primary
-  full-Bayes PH model (fit_stan_pwexp) under several log-HR prior SDs
-  and compare the posterior of each validation metric. A robust
-  conclusion should be stable across weakly-informative priors; a large
-  shift flags prior-dependence.
+  : Prior-sensitivity analysis (checklist 1): refit the primary Bayesian
+  PH model (fit_stan_pwexp) under several log-HR prior SDs and compare
+  the posterior of each performance estimator. A robust conclusion
+  should be stable across weakly-informative priors; a large shift flags
+  prior-dependence.
 
 - [`loo_survival()`](https://wmotte.github.io/bayesval/reference/loo_survival.md)
   :
@@ -116,8 +116,8 @@ The one idea — propagate any frequentist estimator across the posterior
   prediction set.
 
 - [`bb_optimism()`](https://wmotte.github.io/bayesval/reference/bb_optimism.md)
-  : Bayesian-bootstrap optimism correction for a scalar validation
-  metric.
+  : Bayesian-bootstrap optimism correction for a scalar performance
+  estimator.
 
 ## Discrimination metrics
 

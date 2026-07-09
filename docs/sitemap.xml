@@ -5,7 +5,9 @@
 <url><loc>https://wmotte.github.io/bayesval/articles/index.html</loc></url>
 <url><loc>https://wmotte.github.io/bayesval/articles/showcase_pbc.html</loc></url>
 <url><loc>https://wmotte.github.io/bayesval/articles/showcase_small_cohort.html</loc></url>
+<url><loc>https://wmotte.github.io/bayesval/articles/small_sample_stan_vs_laplace.html</loc></url>
 <url><loc>https://wmotte.github.io/bayesval/articles/worked_example.html</loc></url>
+<url><loc>https://wmotte.github.io/bayesval/articles/worked_example_stan.html</loc></url>
 <url><loc>https://wmotte.github.io/bayesval/authors.html</loc></url>
 <url><loc>https://wmotte.github.io/bayesval/index.html</loc></url>
 <url><loc>https://wmotte.github.io/bayesval/reference/bb_optimism.html</loc></url>
@@ -18,6 +20,7 @@
 <url><loc>https://wmotte.github.io/bayesval/reference/check_mcmc_gate.html</loc></url>
 <url><loc>https://wmotte.github.io/bayesval/reference/clear_psurv_cache.html</loc></url>
 <url><loc>https://wmotte.github.io/bayesval/reference/dot-BC_DEFAULTS.html</loc></url>
+<url><loc>https://wmotte.github.io/bayesval/reference/dot-bayesval_version.html</loc></url>
 <url><loc>https://wmotte.github.io/bayesval/reference/dot-brier_ipcw.html</loc></url>
 <url><loc>https://wmotte.github.io/bayesval/reference/dot-calibration_curve.html</loc></url>
 <url><loc>https://wmotte.github.io/bayesval/reference/dot-curve_on_grid.html</loc></url>

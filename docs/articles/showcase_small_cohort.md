@@ -14,7 +14,7 @@ backend.
 - **Act 1** — in one such cohort the frequentist read-out is ambiguous:
   every 95% CI is so wide it spans “good” and “broken”, so the
   deploy/reject decision is a coin flip. The Bayesian framework returns
-  the clinically actionable quantities directly — P(discrimination
+  the decision-relevant quantities directly — P(discrimination
   adequate), P(calibration acceptable), P(net clinical benefit \> 0),
   P(net harm) — and a single **joint** deployment-gate probability.
 - **Act 2** — that joint gate is genuinely not recoverable from separate
@@ -91,6 +91,24 @@ value, net benefit at threshold 0.2 beats treat-all/none.
 
 C_MIN <- 0.65; SLOPE_LO <- 0.80; SLOPE_HI <- 1.25
 
+baseline_at_horizons <- function(bh, horizons) {
+  ok <- is.finite(bh$time) & is.finite(bh$hazard)
+  time <- bh$time[ok]
+  hazard <- bh$hazard[ok]
+  if (!length(time)) return(rep(0, length(horizons)))
+  ord <- order(time)
+  time <- c(0, time[ord])
+  hazard <- c(0, hazard[ord])
+  keep <- !duplicated(time, fromLast = TRUE)
+  time <- time[keep]
+  hazard <- hazard[keep]
+  if (length(time) == 1L) return(rep(hazard[[1]], length(horizons)))
+  out <- stats::approx(time, hazard, xout = horizons,
+                       method = "constant", rule = 2, f = 0)$y
+  out[is.na(out)] <- 0
+  out
+}
+
 published_predict <- function(fit, newdata, horizons) {
   Terms <- stats::delete.response(stats::terms(fit))
   mf <- stats::model.frame(Terms, newdata, xlev = fit$xlevels)
@@ -98,9 +116,7 @@ published_predict <- function(fit, newdata, horizons) {
   X  <- X[, names(stats::coef(fit)), drop = FALSE]
   eta <- as.numeric(X %*% stats::coef(fit))
   bh  <- survival::basehaz(fit, centered = FALSE)
-  H0  <- stats::approx(bh$time, bh$hazard, xout = horizons,
-                       method = "constant", rule = 2, f = 0)$y
-  H0[is.na(H0)] <- 0
+  H0  <- baseline_at_horizons(bh, horizons)
   list(eta = eta, S = exp(-outer(exp(eta), H0)))
 }
 metric_dnb <- function(pt, h) function(draw, w) {
@@ -130,6 +146,60 @@ suite <- list(
   ici     = function(d, w) metric_ici(d, w, horizon = H5, method = "auto")["ICI"],
   ibs     = function(d, w) metric_brier(d, w)["IBS"],
   nb      = metric_dnb(PT, H5))
+```
+
+### A fair frequentist comparator: the paired bootstrap joint gate
+
+The dichotomous rule below (all three 95% intervals clear their bars) is
+a deliberately conservative reporting-practice reference. A stronger,
+fairer comparator resamples the evaluation cohort once per replicate and
+recomputes every gate-critical metric on that same replicate, so a
+frequentist analyst can also express the joint deployment event as a
+bootstrap frequency — the direct classical analogue of the Bayesian gate
+probability. It preserves the dependence across metrics that separate
+marginal intervals discard. `with_preserved_rng()` shields the global
+stream so this additive comparator never perturbs the reproducible draws
+of the rest of the vignette.
+
+``` r
+
+with_preserved_rng <- function(expr) {
+  old <- if (exists(".Random.seed", .GlobalEnv))
+           get(".Random.seed", .GlobalEnv) else NULL
+  on.exit(if (!is.null(old)) assign(".Random.seed", old, envir = .GlobalEnv))
+  force(expr)
+}
+paired_boot_gate <- function(time, status, lp, surv2d, B, seed) {
+  n <- length(time)
+  with_preserved_rng({
+    set.seed(seed)
+    pass <- logical(B)
+    for (b in seq_len(B)) {
+      idx <- sample.int(n, n, replace = TRUE)
+      tt <- time[idx]; ss <- status[idx]; ll <- lp[idx]
+      ch <- tryCatch(concordance(Surv(tt, ss) ~ ll), error = function(e) NULL)
+      cs <- tryCatch(coxph(Surv(tt, ss) ~ ll), error = function(e) NULL)
+      if (is.null(ch) || is.null(cs)) { pass[b] <- NA; next }
+      Cb  <- 1 - ch$concordance                      # marker orientation = -eta
+      slb <- unname(coef(cs))
+      db  <- list(surv2d = surv2d[idx, , drop = FALSE], eta = ll, time = tt,
+                  status = ss, horizons = HZ, n = n, H = length(HZ))
+      dnbb <- as.numeric(metric_dnb(PT, H5)(db, rep(1 / n, n))["dNB"])
+      pass[b] <- (Cb >= C_MIN) &&
+        (slb >= SLOPE_LO && slb <= SLOPE_HI) && (dnbb > 0)
+    }
+    mean(pass, na.rm = TRUE)
+  })
+}
+# Wilson score interval for a binomial proportion (uncertainty band on each
+# reliability-bin empirical fraction).
+wilson_ci <- function(k, n, z = 1.96) {
+  if (n == 0) return(c(lo = NA_real_, hi = NA_real_))
+  p <- k / n; d <- 1 + z^2 / n
+  ctr <- (p + z^2 / (2 * n)) / d
+  hw  <- z * sqrt(p * (1 - p) / n + z^2 / (4 * n^2)) / d
+  c(lo = max(0, ctr - hw), hi = min(1, ctr + hw))
+}
 ```
 
 ## Act 1 — one small local cohort: frequentist ambiguity vs Bayesian answer
@@ -186,6 +256,18 @@ boot_ci <- function(fn, B = 400L, seed = 11) {
   c(est, stats::quantile(v, c(0.025, 0.975), names = FALSE))
 }
 fr_ici <- boot_ci(function(d, w) metric_ici(d, w, horizon = H5, method = "auto")["ICI"])
+```
+
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+
+``` r
+
 fr_dnb <- boot_ci(function(d, w) metric_dnb(PT, H5)(d, w)["dNB"])
 
 frtab <- rbind(`Harrell C` = fr_C, `Calibration slope` = fr_slope,
@@ -198,7 +280,7 @@ knitr::kable(round(frtab, 3), caption = "Frequentist point estimate [95% CI]")
 |:----------------------|------:|-------:|------:|
 | Harrell C             | 0.586 |  0.503 | 0.669 |
 | Calibration slope     | 0.638 |  0.228 | 1.048 |
-| ICI (5y)              | 0.132 |  0.082 | 0.264 |
+| ICI (5y)              | 0.136 |  0.051 | 0.420 |
 | dNB @20% (vs default) | 0.014 | -0.016 | 0.051 |
 
 Frequentist point estimate \[95% CI\] {.table}
@@ -234,7 +316,21 @@ cat(sprintf("net benefit dNB>0: %s\n", verdict(fr_dnb[2], fr_dnb[3], need_lo = 0
 
 The marginal-interval rule does not decide the deployment question.
 
-### Bayesian read-out: posteriors and actionable probabilities
+### Fair frequentist comparator: paired-bootstrap joint-gate frequency
+
+``` r
+
+P_gate_boot <- paired_boot_gate(local$time, local$status, lp, mean_draw$surv2d,
+                                B = 2000L, seed = 23)
+cat(sprintf("Paired-bootstrap joint-gate frequency = %.3f\n", P_gate_boot))
+```
+
+    ## Paired-bootstrap joint-gate frequency = 0.064
+
+All three metrics are recomputed on each bootstrap replicate; this is
+the direct classical analogue of the Bayesian gate probability below.
+
+### Bayesian read-out: posteriors and deployment probabilities
 
 ``` r
 
@@ -254,7 +350,7 @@ knitr::kable(post_tab, digits = 3, caption = "Posterior median [95% CrI]")
 | Harrell C             |  0.585 |  0.503 | 0.669 |
 | Uno C                 |  0.606 |  0.522 | 0.686 |
 | Calibration slope     |  0.634 |  0.268 | 1.001 |
-| ICI (5y)              |  0.160 |  0.081 | 0.246 |
+| ICI (5y)              |  0.141 |  0.114 | 0.159 |
 | IBS                   |  0.236 |  0.189 | 0.290 |
 | Net benefit @20%      |  0.440 |  0.284 | 0.580 |
 | dNB @20% (vs default) |  0.012 | -0.022 | 0.051 |
@@ -312,8 +408,8 @@ cat(sprintf("[oracle] C=%.2f slope=%.2f dNB=%+.3f => %s\n", orc1$C, orc1$slope,
 
     ## [oracle] C=0.68 slope=1.03 dNB=-0.003 => NOT deploy-worthy
 
-The Bayesian gate reaches the correct decisive call where every
-frequentist interval was individually undecided.
+The joint gate reaches the correct low-probability conclusion where
+every frequentist interval was individually undecided.
 
 ## Act 2 — the joint gate is not recoverable from separate intervals
 
@@ -344,6 +440,13 @@ cat(sprintf("relative error of the naive shortcut     = %+.0f%%\n",
 
 ``` r
 
+cat(sprintf("joint gate, paired classical bootstrap   = %.3f\n", P_gate_boot))
+```
+
+    ## joint gate, paired classical bootstrap   = 0.064
+
+``` r
+
 cat(sprintf("posterior corr(slope, dNB) = %+.2f ; corr(C, slope) = %+.2f\n",
             rho_cs, rho_cc))
 ```
@@ -351,8 +454,10 @@ cat(sprintf("posterior corr(slope, dNB) = %+.2f ; corr(C, slope) = %+.2f\n",
     ## posterior corr(slope, dNB) = +0.29 ; corr(C, slope) = +0.90
 
 The metrics move together across the posterior; a set of separate
-frequentist intervals throws this dependence away. Only a coherent joint
-posterior over all metrics at once carries it.
+frequentist intervals throws this dependence away. A paired bootstrap
+that recomputes every metric on the same replicate does preserve this
+dependence and yields a comparable joint frequency; the Bayesian gate
+adds model-parameter uncertainty and a coherent posterior read-out.
 
 ``` r
 
@@ -406,11 +511,49 @@ for (ci in seq_along(CONFIGS)) {
     pg <- mean(Jr[, "C_harrell"] >= C_MIN &
                Jr[, "cal_slope"] >= SLOPE_LO & Jr[, "cal_slope"] <= SLOPE_HI &
                Jr[, "dNB"] > 0)
-    rows[[r]] <- tibble::tibble(config = ci, worthy = orc$worthy, p_deploy = pg)
+    # frequentist dichotomous deploy rule on the same cohort (conservative
+    # reporting-practice reference):
+    lpr <- colMeans(psr$eta)
+    dvr <- tibble::tibble(time = dat$time, status = dat$status, lp = lpr)
+    chr <- concordance(Surv(time, status) ~ lp, data = dvr)
+    csr <- coxph(Surv(time, status) ~ lp, data = dvr)
+    C_lo  <- (1 - chr$concordance) - 1.96 * sqrt(chr$var)
+    sl    <- unname(coef(csr)); sl_se <- sqrt(vcov(csr)[1, 1])
+    freq_deploy <- (C_lo >= C_MIN) &&
+      ((sl - 1.96 * sl_se) >= SLOPE_LO) && ((sl + 1.96 * sl_se) <= SLOPE_HI)
+    # fair comparator: paired-bootstrap joint-gate frequency on the same cohort.
+    p_boot <- paired_boot_gate(dat$time, dat$status, lpr,
+                               matrix(colMeans(psr$surv), nrow = psr$n),
+                               B = 250L, seed = 7000L * ci + rep)
+    rows[[r]] <- tibble::tibble(config = ci, worthy = orc$worthy, p_deploy = pg,
+                                p_boot = p_boot, freq_deploy = freq_deploy)
   }
 }
 ```
 
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
+    ## Convergence problems.... stopping addition
     ## Convergence problems.... stopping addition
     ## Convergence problems.... stopping addition
     ## Convergence problems.... stopping addition
@@ -429,23 +572,22 @@ for (ci in seq_along(CONFIGS)) {
 
 D <- dplyr::bind_rows(rows)
 
-wilson_ci <- function(k, n, z = 1.96) {
-  if (n == 0) return(c(lo = NA_real_, hi = NA_real_))
-  p <- k / n; d <- 1 + z^2 / n
-  ctr <- (p + z^2 / (2 * n)) / d
-  hw  <- z * sqrt(p * (1 - p) / n + z^2 / (4 * n^2)) / d
-  c(lo = max(0, ctr - hw), hi = min(1, ctr + hw))
+reliability_of <- function(df, col) {
+  df |>
+    dplyr::mutate(bin = cut(.data[[col]], seq(0, 1, by = 0.2),
+                            include.lowest = TRUE)) |>
+    dplyr::group_by(bin) |>
+    dplyr::summarise(mid = mean(.data[[col]]), emp = mean(worthy),
+                     n = dplyr::n(), .groups = "drop") |>
+    dplyr::filter(is.finite(mid)) |>
+    dplyr::mutate(
+      emp_lo = purrr::map2_dbl(round(emp * n), n, ~ wilson_ci(.x, .y)[["lo"]]),
+      emp_hi = purrr::map2_dbl(round(emp * n), n, ~ wilson_ci(.x, .y)[["hi"]])) |>
+    dplyr::select(mid, emp, emp_lo, emp_hi, n)
 }
-rel <- D |>
-  dplyr::mutate(bin = cut(p_deploy, seq(0, 1, by = 0.2), include.lowest = TRUE)) |>
-  dplyr::group_by(bin) |>
-  dplyr::summarise(mid = mean(p_deploy), emp = mean(worthy), n = dplyr::n(),
-                   .groups = "drop") |>
-  dplyr::filter(is.finite(mid)) |>
-  dplyr::mutate(
-    emp_lo = purrr::map2_dbl(round(emp * n), n, ~ wilson_ci(.x, .y)[["lo"]]),
-    emp_hi = purrr::map2_dbl(round(emp * n), n, ~ wilson_ci(.x, .y)[["hi"]]))
-knitr::kable(dplyr::select(rel, mid, emp, emp_lo, emp_hi, n), digits = 3,
+rel      <- reliability_of(D, "p_deploy")   # Bayesian gate
+rel_boot <- reliability_of(D, "p_boot")     # paired-bootstrap gate
+knitr::kable(rel, digits = 3,
              caption = "Reliability of the Bayesian gate P(deploy-worthy) [Wilson 95%]")
 ```
 
@@ -461,22 +603,60 @@ Reliability of the Bayesian gate P(deploy-worthy) \[Wilson 95%\]
 
 ``` r
 
-brier_bayes <- mean((D$p_deploy - D$worthy)^2)
-cat(sprintf("Probability Brier score of the gate vs truth: %.3f (lower is better)\n",
-            brier_bayes))
+knitr::kable(rel_boot, digits = 3,
+             caption = "Reliability of the paired-bootstrap joint-gate frequency")
 ```
 
-    ## Probability Brier score of the gate vs truth: 0.311 (lower is better)
+|   mid |   emp | emp_lo | emp_hi |   n |
+|------:|------:|-------:|-------:|----:|
+| 0.067 | 0.412 |  0.264 |  0.578 |  34 |
+| 0.284 | 0.667 |  0.417 |  0.848 |  15 |
+| 0.495 | 0.556 |  0.267 |  0.811 |   9 |
+| 0.700 | 0.500 |  0.095 |  0.905 |   2 |
+
+Reliability of the paired-bootstrap joint-gate frequency {.table}
 
 ``` r
 
-ggplot2::ggplot(rel, ggplot2::aes(mid, emp)) +
+tp <- if (any(D$worthy)) mean(D$freq_deploy[D$worthy]) else NA_real_
+fp <- if (any(!D$worthy)) mean(D$freq_deploy[!D$worthy]) else NA_real_
+brier_bayes <- mean((D$p_deploy - D$worthy)^2)
+brier_boot  <- mean((D$p_boot   - D$worthy)^2)
+cat(sprintf("Frequentist dichotomous rule: deploys %.0f%% of truly-worthy, %.0f%% of unworthy cohorts.\n",
+            100 * tp, 100 * fp))
+```
+
+    ## Frequentist dichotomous rule: deploys 0% of truly-worthy, 0% of unworthy cohorts.
+
+``` r
+
+cat(sprintf("Probability Brier score vs truth: Bayesian gate = %.3f, paired bootstrap = %.3f (lower is better).\n",
+            brier_bayes, brier_boot))
+```
+
+    ## Probability Brier score vs truth: Bayesian gate = 0.311, paired bootstrap = 0.329 (lower is better).
+
+Both graded gates rank cohorts by worthiness; the dichotomous rule gives
+an over/under-confident yes/no only at this sample size.
+
+``` r
+
+meth_lab <- c("Bayesian gate", "paired bootstrap gate")
+rel_both <- dplyr::bind_rows(
+  dplyr::mutate(rel,      method = meth_lab[1]),
+  dplyr::mutate(rel_boot, method = meth_lab[2])) |>
+  dplyr::mutate(method = factor(method, levels = meth_lab))
+ggplot2::ggplot(rel_both, ggplot2::aes(mid, emp, colour = method)) +
   ggplot2::geom_abline(slope = 1, intercept = 0, linetype = 2, colour = "gray50") +
-  ggplot2::geom_line(linewidth = 0.8, colour = bc_palette[["blue"]]) +
+  ggplot2::geom_line(linewidth = 0.8) +
   ggplot2::geom_errorbar(ggplot2::aes(ymin = emp_lo, ymax = emp_hi), width = 0.02,
-                         linewidth = 0.4, colour = bc_palette[["blue"]]) +
-  ggplot2::geom_point(ggplot2::aes(size = n), shape = 21, fill = bc_palette[["blue"]],
-                      colour = "gray40", stroke = 0.3) +
+                         linewidth = 0.4) +
+  ggplot2::geom_point(ggplot2::aes(size = n)) +
+  ggplot2::geom_point(ggplot2::aes(size = n), shape = 21, colour = "gray40",
+                      stroke = 0.3) +
+  ggplot2::scale_colour_manual(
+    values = stats::setNames(bc_palette[c("blue", "orange")], meth_lab),
+    name = NULL) +
   ggplot2::scale_size_area(name = "cohorts", max_size = 9) +
   ggplot2::coord_cartesian(xlim = c(0, 1), ylim = c(0, 1)) +
   ggplot2::scale_x_continuous(breaks = number_ticks(6)) +
@@ -490,4 +670,5 @@ ggplot2::ggplot(rel, ggplot2::aes(mid, emp)) +
 
 The Bayesian deployment probability ranks cohorts by true worthiness and
 tracks the diagonal — a graded, checkable confidence a dichotomous
-frequentist rule cannot offer.
+frequentist rule cannot offer. The paired-bootstrap gate is overlaid as
+the fair frequentist comparator.

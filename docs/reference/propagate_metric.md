@@ -49,4 +49,6 @@ propagate_metric(
 ## Value
 
 a `posterior_metric` object: matrix `[S_used x K]` of draws plus the
-metric names; summarise with summary().
+metric names; summarise with summary(). The summary reports non-finite
+draw counts and flags metrics with more than 5% non-finite draws by
+default.

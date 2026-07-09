@@ -24,6 +24,7 @@ Bayesian bootstrap (B3)."></head><body>
     <li><a class="dropdown-item" href="../articles/showcase_small_cohort.html">Showcase: small local cohort</a></li>
     <li><a class="dropdown-item" href="../articles/showcase_pbc.html">Showcase: Mayo PBC cohort</a></li>
     <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item" href="../articles/worked_example_stan.html">Worked example with the full-Bayes model (pre-rendered)</a></li>
     <li><a class="dropdown-item" href="../articles/small_sample_stan_vs_laplace.html">Full-Bayes MCMC vs Cox-Laplace (pre-rendered)</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -94,7 +95,9 @@ Dirichlet(1) reweight per draw), or a user matrix <code>[S x n]</code>.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>a <code>posterior_metric</code> object: matrix <code>[S_used x K]</code> of draws plus the
-metric names; summarise with summary().</p>
+metric names; summarise with summary(). The summary reports
+non-finite draw counts and flags metrics with more than 5% non-finite
+draws by default.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

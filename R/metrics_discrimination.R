@@ -189,6 +189,7 @@ metric_td_auc <- function(draw, w = NULL) {
 #' Right-continuous step evaluation of a KM survival curve at query times.
 #' @keywords internal
 .step_eval <- function(km, xout) {
+  if (!length(km$time)) return(rep(1, length(xout)))
   stats::approx(x = c(0, km$time), y = c(1, km$surv), xout = xout,
                 method = "constant", rule = 2, f = 0)$y
 }

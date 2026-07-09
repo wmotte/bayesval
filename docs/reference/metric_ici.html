@@ -24,6 +24,7 @@
     <li><a class="dropdown-item" href="../articles/showcase_small_cohort.html">Showcase: small local cohort</a></li>
     <li><a class="dropdown-item" href="../articles/showcase_pbc.html">Showcase: Mayo PBC cohort</a></li>
     <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item" href="../articles/worked_example_stan.html">Worked example with the full-Bayes model (pre-rendered)</a></li>
     <li><a class="dropdown-item" href="../articles/small_sample_stan_vs_laplace.html">Full-Bayes MCMC vs Cox-Laplace (pre-rendered)</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -69,7 +70,10 @@
 
 
 <dt id="arg-method">method<a class="anchor" aria-label="anchor" href="#arg-method"></a></dt>
-<dd><p>"auto" (hare if installed else group), "hare", or "group".</p></dd>
+<dd><p>"auto" (hare if installed else group), "hare", or "group".
+The grouped method is fully case-weighted. HARE smoothing is unweighted
+because <code><a href="https://rdrr.io/pkg/polspline/man/hare.html" class="external-link">polspline::hare()</a></code> has no case-weight argument; the final
+ICI/E50/E90 aggregation still uses <code>w</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

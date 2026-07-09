@@ -25,7 +25,7 @@ is checkable against an oracle. It runs on the `coxph`-Laplace backend.
 
 - **Act 1** — in one such cohort the frequentist read-out is ambiguous: every
   95% CI is so wide it spans "good" and "broken", so the deploy/reject decision
-  is a coin flip. The Bayesian framework returns the clinically actionable
+  is a coin flip. The Bayesian framework returns the decision-relevant
   quantities directly — P(discrimination adequate), P(calibration acceptable),
   P(net clinical benefit > 0), P(net harm) — and a single **joint** deployment-gate
   probability.
@@ -98,6 +98,24 @@ slope in [0.80, 1.25]; (iii) positive clinical value, net benefit at threshold
 ```{r gate-bars}
 C_MIN <- 0.65; SLOPE_LO <- 0.80; SLOPE_HI <- 1.25
 
+baseline_at_horizons <- function(bh, horizons) {
+  ok <- is.finite(bh$time) & is.finite(bh$hazard)
+  time <- bh$time[ok]
+  hazard <- bh$hazard[ok]
+  if (!length(time)) return(rep(0, length(horizons)))
+  ord <- order(time)
+  time <- c(0, time[ord])
+  hazard <- c(0, hazard[ord])
+  keep <- !duplicated(time, fromLast = TRUE)
+  time <- time[keep]
+  hazard <- hazard[keep]
+  if (length(time) == 1L) return(rep(hazard[[1]], length(horizons)))
+  out <- stats::approx(time, hazard, xout = horizons,
+                       method = "constant", rule = 2, f = 0)$y
+  out[is.na(out)] <- 0
+  out
+}
+
 published_predict <- function(fit, newdata, horizons) {
   Terms <- stats::delete.response(stats::terms(fit))
   mf <- stats::model.frame(Terms, newdata, xlev = fit$xlevels)
@@ -105,9 +123,7 @@ published_predict <- function(fit, newdata, horizons) {
   X  <- X[, names(stats::coef(fit)), drop = FALSE]
   eta <- as.numeric(X %*% stats::coef(fit))
   bh  <- survival::basehaz(fit, centered = FALSE)
-  H0  <- stats::approx(bh$time, bh$hazard, xout = horizons,
-                       method = "constant", rule = 2, f = 0)$y
-  H0[is.na(H0)] <- 0
+  H0  <- baseline_at_horizons(bh, horizons)
   list(eta = eta, S = exp(-outer(exp(eta), H0)))
 }
 metric_dnb <- function(pt, h) function(draw, w) {
@@ -269,7 +285,7 @@ cat(sprintf("Paired-bootstrap joint-gate frequency = %.3f\n", P_gate_boot))
 All three metrics are recomputed on each bootstrap replicate; this is the
 direct classical analogue of the Bayesian gate probability below.
 
-## Bayesian read-out: posteriors and actionable probabilities
+## Bayesian read-out: posteriors and deployment probabilities
 
 ```{r act1-bayes}
 qi <- function(x) stats::quantile(x, c(0.025, 0.5, 0.975), names = FALSE)
@@ -455,3 +471,11 @@ The Bayesian deployment probability ranks cohorts by true worthiness and tracks
 the diagonal — a graded, checkable confidence a dichotomous frequentist rule
 cannot offer. The paired-bootstrap gate is overlaid as the fair frequentist
 comparator.
+
+## Citation
+
+`bayesval` is the software companion to:
+
+> Otte WM, Kampman SL, [...] *A Bayesian framework for validating survival
+> prediction models: posterior credible intervals for discrimination,
+> calibration, and clinical utility.* in prep.

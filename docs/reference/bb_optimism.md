@@ -1,6 +1,7 @@
-# Bayesian-bootstrap optimism correction for a scalar validation metric.
+# Bayesian-bootstrap optimism correction for a scalar performance estimator.
 
-Bayesian-bootstrap optimism correction for a scalar validation metric.
+Bayesian-bootstrap optimism correction for a scalar performance
+estimator.
 
 ## Usage
 

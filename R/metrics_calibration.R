@@ -194,6 +194,7 @@ metric_dcalibration <- function(draw, w = NULL, bins = 10L) {
   if (is.null(w)) w <- rep(1, length(time))
   fit <- survival::survfit(survival::Surv(time, status) ~ 1,
                            weights = w * length(time))
+  if (!length(fit$time)) return(1)
   stats::approx(x = c(0, fit$time), y = c(1, fit$surv), xout = t,
                 method = "constant", rule = 2, f = 0)$y
 }
@@ -201,7 +202,12 @@ metric_dcalibration <- function(draw, w = NULL, bins = 10L) {
 #' Weighted quantile (type-7-ish, linear on the weighted ECDF).
 #' @keywords internal
 .wquantile <- function(x, w, p) {
+  ok <- is.finite(x) & is.finite(w) & w > 0
+  x <- x[ok]
+  w <- w[ok]
+  if (!length(x)) return(NA_real_)
   o <- order(x); x <- x[o]; w <- w[o]
+  if (length(x) == 1L) return(x)
   cw <- cumsum(w) - 0.5 * w
   cw <- cw / sum(w)
   stats::approx(x = cw, y = x, xout = p, rule = 2)$y

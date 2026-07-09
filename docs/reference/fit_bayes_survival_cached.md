@@ -38,10 +38,10 @@ fit_bayes_survival_cached(
 
 - backend:
 
-  "stan_surv" (rstanarm M-spline PH; primary), "pwexp"
-  (piecewise-exponential Poisson-trick PH; robustness comparator,
-  survival-only), "bart" (nonparametric BART survival), or "coxph"
-  (Cox-Laplace approximation; fallback / testing).
+  "stan_pwexp" (primary rstan piecewise-exponential PH), "stan_surv"
+  (rstanarm M-spline PH if available), "pwexp" (piecewise-exponential
+  Poisson-trick PH; survival-only), "bart" (nonparametric BART
+  survival), or "coxph" (Cox-Laplace approximation; fallback / testing).
 
 - S:
 

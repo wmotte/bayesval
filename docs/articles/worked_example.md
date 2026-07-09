@@ -177,3 +177,11 @@ probabilistic replacement for the usual bootstrap CI.
 > The primary full-Bayes MCMC path (`backend = "stan_pwexp"`) and
 > internal optimism correction are covered in the package’s other
 > articles.
+
+### Citation
+
+`bayesval` is the software companion to:
+
+> Otte WM, Kampman SL, \[…\] *A Bayesian framework for validating
+> survival prediction models: posterior credible intervals for
+> discrimination, calibration, and clinical utility.* in prep.

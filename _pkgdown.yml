@@ -6,9 +6,9 @@ template:
 home:
   title: bayesval
   description: >
-    Bayesian probabilistic validation of Cox proportional-hazards prediction
-    models — every discrimination, calibration, and clinical-utility metric
-    reported as a posterior distribution with a 95% credible interval.
+    Bayesian validation for Cox proportional-hazards prediction models: propagate
+    finite-sample discrimination, calibration, performance, and clinical-utility
+    estimators across posterior survival draws and report the induced uncertainty.
 
 navbar:
   structure:

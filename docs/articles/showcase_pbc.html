@@ -37,6 +37,7 @@
     <li><a class="dropdown-item" href="../articles/showcase_small_cohort.html">Showcase: small local cohort</a></li>
     <li><a class="dropdown-item" href="../articles/showcase_pbc.html">Showcase: Mayo PBC cohort</a></li>
     <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item" href="../articles/worked_example_stan.html">Worked example with the full-Bayes model (pre-rendered)</a></li>
     <li><a class="dropdown-item" href="../articles/small_sample_stan_vs_laplace.html">Full-Bayes MCMC vs Cox-Laplace (pre-rendered)</a></li>
   </ul>
 </li>
@@ -75,9 +76,9 @@ randomized trial participants (n = 312, 125 events) and externally
 validate it on the independent non-randomized eligible patients (n =
 106, 36 events).</p>
 <p>With only 36 events in the validation cohort, classical frequentist
-confidence intervals for validation metrics are wide, often leading to
-ambiguous deployment decisions. The Bayesian framework yields a coherent
-deployment gate probability instead.</p>
+confidence intervals for separate performance measures are wide, often
+leading to ambiguous local-use decisions. The posterior workflow yields
+a coherent deployment gate probability instead.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/message.html" class="external-link">suppressMessages</a></span><span class="op">(</span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/therneau/survival" class="external-link">survival</a></span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/wmotte/bayesval" class="external-link">bayesval</a></span><span class="op">)</span></span>
@@ -158,8 +159,10 @@ deployment gate probability instead.</p>
 <span>  <span class="op">}</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">est</span>, <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">v</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.025</span>, <span class="fl">0.975</span><span class="op">)</span>, names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="va">fr_ici</span> <span class="op">&lt;-</span> <span class="fu">boot_ci</span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span><span class="op">)</span> <span class="fu"><a href="../reference/metric_ici.html">metric_ici</a></span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span>, horizon <span class="op">=</span> <span class="va">H5</span>, method <span class="op">=</span> <span class="st">"auto"</span><span class="op">)</span><span class="op">[</span><span class="st">"ICI"</span><span class="op">]</span><span class="op">)</span></span>
-<span><span class="va">fr_dnb</span> <span class="op">&lt;-</span> <span class="fu">boot_ci</span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span><span class="op">)</span> <span class="fu">metric_dnb</span><span class="op">(</span><span class="va">PT</span>, <span class="va">H5</span><span class="op">)</span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span><span class="op">)</span><span class="op">[</span><span class="st">"dNB"</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="va">fr_ici</span> <span class="op">&lt;-</span> <span class="fu">boot_ci</span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span><span class="op">)</span> <span class="fu"><a href="../reference/metric_ici.html">metric_ici</a></span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span>, horizon <span class="op">=</span> <span class="va">H5</span>, method <span class="op">=</span> <span class="st">"auto"</span><span class="op">)</span><span class="op">[</span><span class="st">"ICI"</span><span class="op">]</span><span class="op">)</span></span></code></pre></div>
+<pre><code><span><span class="co">## Convergence problems.... stopping addition</span></span></code></pre>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fr_dnb</span> <span class="op">&lt;-</span> <span class="fu">boot_ci</span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span><span class="op">)</span> <span class="fu">metric_dnb</span><span class="op">(</span><span class="va">PT</span>, <span class="va">H5</span><span class="op">)</span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span><span class="op">)</span><span class="op">[</span><span class="st">"dNB"</span><span class="op">]</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">frtab</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>`Harrell C` <span class="op">=</span> <span class="va">fr_C</span>, `Calibration slope` <span class="op">=</span> <span class="va">fr_slope</span>,</span>
 <span>              `ICI (5y)` <span class="op">=</span> <span class="va">fr_ici</span>, `dNB @20% (vs default)` <span class="op">=</span> <span class="va">fr_dnb</span><span class="op">)</span></span>
@@ -188,9 +191,9 @@ deployment gate probability instead.</p>
 </tr>
 <tr class="odd">
 <td align="left">ICI (5y)</td>
-<td align="right">0.107</td>
-<td align="right">0.074</td>
-<td align="right">0.197</td>
+<td align="right">0.117</td>
+<td align="right">0.092</td>
+<td align="right">0.450</td>
 </tr>
 <tr class="even">
 <td align="left">dNB <span class="citation">@20</span>% (vs
@@ -201,7 +204,7 @@ default)</td>
 </tr>
 </tbody>
 </table>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">verdict</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">lo</span>, <span class="va">hi</span>, <span class="va">need_lo</span> <span class="op">=</span> <span class="cn">NA</span>, <span class="va">need_hi</span> <span class="op">=</span> <span class="cn">NA</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">ok_lo</span> <span class="op">&lt;-</span> <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">need_lo</span><span class="op">)</span><span class="op">)</span> <span class="cn">TRUE</span> <span class="kw">else</span> <span class="va">lo</span> <span class="op">&gt;=</span> <span class="va">need_lo</span></span>
 <span>  <span class="va">ok_hi</span> <span class="op">&lt;-</span> <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">need_hi</span><span class="op">)</span><span class="op">)</span> <span class="cn">TRUE</span> <span class="kw">else</span> <span class="va">hi</span> <span class="op">&lt;=</span> <span class="va">need_hi</span></span>
@@ -211,20 +214,22 @@ default)</td>
 <span><span class="op">}</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"discrimination C&gt;=%.2f: %s\n"</span>, <span class="va">C_MIN</span>, <span class="fu">verdict</span><span class="op">(</span><span class="va">fr_C</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span>, <span class="va">fr_C</span><span class="op">[</span><span class="fl">3</span><span class="op">]</span>, need_lo <span class="op">=</span> <span class="va">C_MIN</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## discrimination C&gt;=0.70: PASS</span></span></code></pre>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"calibration slope in [%.2f,%.2f]: %s\n"</span>, <span class="va">SLOPE_LO</span>, <span class="va">SLOPE_HI</span>,</span>
 <span>            <span class="fu">verdict</span><span class="op">(</span><span class="va">fr_slope</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span>, <span class="va">fr_slope</span><span class="op">[</span><span class="fl">3</span><span class="op">]</span>, need_lo <span class="op">=</span> <span class="va">SLOPE_LO</span>, need_hi <span class="op">=</span> <span class="va">SLOPE_HI</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## calibration slope in [0.80,1.25]: AMBIGUOUS</span></span></code></pre>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"net benefit dNB&gt;0: %s\n"</span>, <span class="fu">verdict</span><span class="op">(</span><span class="va">fr_dnb</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span>, <span class="va">fr_dnb</span><span class="op">[</span><span class="fl">3</span><span class="op">]</span>, need_lo <span class="op">=</span> <span class="fl">0</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## net benefit dNB&gt;0: PASS</span></span></code></pre>
 </div>
 <div class="section level2">
-<h2 id="bayesian-read-out-posteriors-and-actionable-probabilities">Bayesian read-out: posteriors and actionable probabilities<a class="anchor" aria-label="anchor" href="#bayesian-read-out-posteriors-and-actionable-probabilities"></a>
+<h2 id="bayesian-read-out-posteriors-and-deployment-probabilities">Bayesian read-out: posteriors and deployment probabilities<a class="anchor" aria-label="anchor" href="#bayesian-read-out-posteriors-and-deployment-probabilities"></a>
 </h2>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">J</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/propagate_many.html">propagate_many</a></span><span class="op">(</span><span class="va">ps</span>, <span class="va">suite</span>, weights <span class="op">=</span> <span class="st">"bootstrap"</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
-<span><span class="va">Jm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">unclass</a></span><span class="op">(</span><span class="va">J</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">Jm</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">sub</a></span><span class="op">(</span><span class="st">"^[^.]+\\."</span>, <span class="st">""</span>, <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">Jm</span><span class="op">)</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">J</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/propagate_many.html">propagate_many</a></span><span class="op">(</span><span class="va">ps</span>, <span class="va">suite</span>, weights <span class="op">=</span> <span class="st">"bootstrap"</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></code></pre></div>
+<pre><code><span><span class="co">## Convergence problems.... stopping addition</span></span></code></pre>
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">Jm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">unclass</a></span><span class="op">(</span><span class="va">J</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">Jm</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">sub</a></span><span class="op">(</span><span class="st">"^[^.]+\\."</span>, <span class="st">""</span>, <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">Jm</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">qi</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">x</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.025</span>, <span class="fl">0.5</span>, <span class="fl">0.975</span><span class="op">)</span>, names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="va">show</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>C_harrell <span class="op">=</span> <span class="st">"Harrell C"</span>, C_uno <span class="op">=</span> <span class="st">"Uno C"</span>, cal_slope <span class="op">=</span> <span class="st">"Calibration slope"</span>,</span>
@@ -264,9 +269,9 @@ default)</td>
 </tr>
 <tr class="even">
 <td align="left">ICI (5y)</td>
-<td align="right">0.247</td>
-<td align="right">0.062</td>
-<td align="right">0.675</td>
+<td align="right">0.274</td>
+<td align="right">0.036</td>
+<td align="right">0.691</td>
 </tr>
 <tr class="odd">
 <td align="left">IBS</td>
@@ -289,7 +294,7 @@ default)</td>
 </tr>
 </tbody>
 </table>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">P_disc</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">Jm</span><span class="op">[</span>, <span class="st">"C_harrell"</span><span class="op">]</span> <span class="op">&gt;=</span> <span class="va">C_MIN</span><span class="op">)</span></span>
 <span><span class="va">P_cal</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">Jm</span><span class="op">[</span>, <span class="st">"cal_slope"</span><span class="op">]</span> <span class="op">&gt;=</span> <span class="va">SLOPE_LO</span> <span class="op">&amp;</span> <span class="va">Jm</span><span class="op">[</span>, <span class="st">"cal_slope"</span><span class="op">]</span> <span class="op">&lt;=</span> <span class="va">SLOPE_HI</span><span class="op">)</span></span>
 <span><span class="va">P_ici</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">Jm</span><span class="op">[</span>, <span class="st">"ICI"</span><span class="op">]</span> <span class="op">&lt;=</span> <span class="fl">0.05</span><span class="op">)</span></span>
@@ -300,24 +305,24 @@ default)</td>
 <span>               <span class="va">Jm</span><span class="op">[</span>, <span class="st">"dNB"</span><span class="op">]</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"P(discrimination adequate) = %.2f\n"</span>, <span class="va">P_disc</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## P(discrimination adequate) = 0.97</span></span></code></pre>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"P(calibration acceptable)  = %.2f\n"</span>, <span class="va">P_cal</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## P(calibration acceptable)  = 0.60</span></span></code></pre>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"P(ICI &lt;= 0.05)              = %.2f\n"</span>, <span class="va">P_ici</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## P(ICI &lt;= 0.05)              = 0.01</span></span></code></pre>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<pre><code><span><span class="co">## P(ICI &lt;= 0.05)              = 0.05</span></span></code></pre>
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"P(net clinical benefit)    = %.2f\n"</span>, <span class="va">P_bene</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## P(net clinical benefit)    = 0.43</span></span></code></pre>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"P(net harm)                = %.2f\n"</span>, <span class="va">P_harm</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## P(net harm)                = 0.54</span></span></code></pre>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"P(JOINT deployment gate)   = %.2f\n"</span>, <span class="va">P_gate</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## P(JOINT deployment gate)   = 0.27</span></span></code></pre>
 <p>Even in this small, real validation cohort, the coherent joint
 posterior turns several individually ambiguous frequentist intervals
-into a single actionable deployment probability.</p>
+into a single deployment probability.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

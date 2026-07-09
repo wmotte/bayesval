@@ -9,9 +9,9 @@ validate it on the independent non-randomized eligible patients (n =
 106, 36 events).
 
 With only 36 events in the validation cohort, classical frequentist
-confidence intervals for validation metrics are wide, often leading to
-ambiguous deployment decisions. The Bayesian framework yields a coherent
-deployment gate probability instead.
+confidence intervals for separate performance measures are wide, often
+leading to ambiguous local-use decisions. The posterior workflow yields
+a coherent deployment gate probability instead.
 
 ``` r
 
@@ -107,6 +107,12 @@ boot_ci <- function(fn, B = 400L, seed = 11) {
   c(est, stats::quantile(v, c(0.025, 0.975), names = FALSE))
 }
 fr_ici <- boot_ci(function(d, w) metric_ici(d, w, horizon = H5, method = "auto")["ICI"])
+```
+
+    ## Convergence problems.... stopping addition
+
+``` r
+
 fr_dnb <- boot_ci(function(d, w) metric_dnb(PT, H5)(d, w)["dNB"])
 
 frtab <- rbind(`Harrell C` = fr_C, `Calibration slope` = fr_slope,
@@ -119,7 +125,7 @@ knitr::kable(round(frtab, 3), caption = "Frequentist point estimate [95% CI]")
 |:----------------------|------:|------:|------:|
 | Harrell C             | 0.786 | 0.714 | 0.857 |
 | Calibration slope     | 0.857 | 0.554 | 1.159 |
-| ICI (5y)              | 0.107 | 0.074 | 0.197 |
+| ICI (5y)              | 0.117 | 0.092 | 0.450 |
 | dNB @20% (vs default) | 0.028 | 0.011 | 0.053 |
 
 Frequentist point estimate \[95% CI\] {.table}
@@ -153,11 +159,17 @@ cat(sprintf("net benefit dNB>0: %s\n", verdict(fr_dnb[2], fr_dnb[3], need_lo = 0
 
     ## net benefit dNB>0: PASS
 
-## Bayesian read-out: posteriors and actionable probabilities
+## Bayesian read-out: posteriors and deployment probabilities
 
 ``` r
 
 J <- propagate_many(ps, suite, weights = "bootstrap", seed = 1)
+```
+
+    ## Convergence problems.... stopping addition
+
+``` r
+
 Jm <- unclass(J); colnames(Jm) <- sub("^[^.]+\\.", "", colnames(Jm))
 
 qi <- function(x) stats::quantile(x, c(0.025, 0.5, 0.975), names = FALSE)
@@ -176,7 +188,7 @@ knitr::kable(post_tab, digits = 3, caption = "Posterior median [95% CrI]")
 | Harrell C             |  0.786 |  0.696 | 0.850 |
 | Uno C                 |  0.786 |  0.698 | 0.854 |
 | Calibration slope     |  0.846 |  0.541 | 1.184 |
-| ICI (5y)              |  0.247 |  0.062 | 0.675 |
+| ICI (5y)              |  0.274 |  0.036 | 0.691 |
 | IBS                   |  0.216 |  0.112 | 0.736 |
 | Net benefit @20%      |  0.131 |  0.000 | 0.292 |
 | dNB @20% (vs default) |  0.000 | -0.222 | 0.092 |
@@ -210,7 +222,7 @@ cat(sprintf("P(calibration acceptable)  = %.2f\n", P_cal))
 cat(sprintf("P(ICI <= 0.05)              = %.2f\n", P_ici))
 ```
 
-    ## P(ICI <= 0.05)              = 0.01
+    ## P(ICI <= 0.05)              = 0.05
 
 ``` r
 
@@ -235,4 +247,4 @@ cat(sprintf("P(JOINT deployment gate)   = %.2f\n", P_gate))
 
 Even in this small, real validation cohort, the coherent joint posterior
 turns several individually ambiguous frequentist intervals into a single
-actionable deployment probability.
+deployment probability.
