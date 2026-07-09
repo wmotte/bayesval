@@ -72,12 +72,11 @@ breast-cancer cohorts</h3>
     
     
 <p>This vignette applies the Bayesian validation framework end-to-end.
-We train a prognostic survival model on the <strong>Rotterdam</strong>
-breast-cancer cohort and <strong>externally validate</strong> it on the
-<strong>GBSG</strong> cohort at a clinically meaningful
-<strong>5-year</strong> horizon. Every validation quantity is reported
-as a <strong>posterior median with a 95 % credible interval</strong>,
-next to the usual frequentist estimate.</p>
+We train a prognostic survival model on the Rotterdam breast-cancer
+cohort and externally validate it on the GBSG cohort at a clinically
+meaningful 5-year horizon. Every validation quantity is reported as a
+posterior median with a 95 % credible interval, next to the usual
+frequentist estimate.</p>
 <blockquote>
 <p>The analysis runs on the <code>coxph</code>-Laplace backend so it
 reproduces with only the <code>survival</code> package. The primary
@@ -134,8 +133,8 @@ on GBSG.</p>
 <h2 id="posterior-validation-suite">Posterior validation suite<a class="anchor" aria-label="anchor" href="#posterior-validation-suite"></a>
 </h2>
 <p>Each metric is propagated across the posterior with the Bayesian
-bootstrap, so the credible interval carries <strong>both</strong>
-model-parameter and evaluation-sample uncertainty.</p>
+bootstrap, so the credible interval carries both model-parameter and
+evaluation-sample uncertainty.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">suite</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  harrell <span class="op">=</span> <span class="va">metric_harrell_c</span>,</span>
@@ -211,10 +210,9 @@ bootstrap)</caption>
 </tbody>
 </table>
 <p>Discrimination is moderate (Harrell C ≈ 0.66, Uno C ≈ 0.65). The
-<strong>calibration slope &lt; 1</strong> and <strong>ICI ≈
-0.09</strong> flag real external miscalibration — the model’s risks need
-recalibration for this cohort, a conclusion discrimination alone cannot
-give.</p>
+calibration slope &lt; 1 and ICI ≈ 0.09 flag real external
+miscalibration - the model’s risks need recalibration for this cohort, a
+conclusion discrimination alone cannot give.</p>
 </div>
 <div class="section level2">
 <h2 id="calibration-as-a-posterior-predictive-check">Calibration as a posterior predictive check<a class="anchor" aria-label="anchor" href="#calibration-as-a-posterior-predictive-check"></a>
@@ -286,23 +284,23 @@ CI]</caption>
 </table>
 <p>The Bayesian posterior medians reproduce the frequentist point
 estimates (they use the same estimators), while the credible intervals
-additionally propagate model-parameter uncertainty — the coherent,
+additionally propagate model-parameter uncertainty - the coherent,
 probabilistic replacement for the usual bootstrap CI.</p>
 <blockquote>
 <p>The primary full-Bayes MCMC path
 (<code>backend = "stan_pwexp"</code>) and internal optimism correction
 are covered in the package’s other articles.</p>
 </blockquote>
-<div class="section level3">
-<h3 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
-</h3>
+</div>
+<div class="section level2">
+<h2 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
+</h2>
 <p><code>bayesval</code> is the software companion to:</p>
 <blockquote>
 <p>Otte WM, Kampman SL, […] <em>A Bayesian framework for validating
 survival prediction models: posterior credible intervals for
 discrimination, calibration, and clinical utility.</em> in prep.</p>
 </blockquote>
-</div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
