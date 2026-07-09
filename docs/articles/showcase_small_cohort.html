@@ -69,36 +69,34 @@
 
     
     
-<p>A published survival model must be validated in a <strong>small,
-low-event local cohort</strong> (n = 120, ~55% censored) before a clinic
-decides whether to deploy it. This is the single most common real
-external-validation situation, and the one where classical
-point-estimate-plus-CI reporting is weakest.</p>
+<p>A published survival model must be validated in a small, low-event
+local cohort (n = 120, ~55% censored) before a clinic decides whether to
+deploy it. This is the single most common real external-validation
+situation, and the one where classical point-estimate-plus-CI reporting
+is weakest.</p>
 <p>This showcase makes three claims and backs each with numbers from a
 self-contained simulation where the truth is known throughout, so every
 claim is checkable against an oracle. It runs on the
 <code>coxph</code>-Laplace backend.</p>
 <ul>
 <li>
-<strong>Act 1</strong> — in one such cohort the frequentist read-out
+<strong>Act 1</strong> - in one such cohort the frequentist read-out
 is ambiguous: every 95% CI is so wide it spans “good” and “broken”, so
 the deploy/reject decision is a coin flip. The Bayesian framework
-returns the decision-relevant quantities directly — P(discrimination
+returns the decision-relevant quantities directly - P(discrimination
 adequate), P(calibration acceptable), P(net clinical benefit &gt; 0),
-P(net harm) — and a single <strong>joint</strong> deployment-gate
-probability.</li>
+P(net harm) - and a single joint deployment-gate probability.</li>
 <li>
-<strong>Act 2</strong> — that joint gate is genuinely not
-recoverable from separate frequentist intervals: the metrics are
-correlated across the posterior, so the honest joint probability differs
-materially from the naive product of marginals.</li>
+<strong>Act 2</strong> - that joint gate cannot be recovered from
+separate frequentist intervals: the metrics are correlated across the
+posterior, so the honest joint probability differs materially from the
+naive product of marginals.</li>
 <li>
-<strong>Act 3</strong> — the Bayesian deployment probability is
-itself <strong>checkable</strong>: pooled over many simulated cohorts
-with known ground truth, a higher gate probability reliably means a more
-deploy-worthy cohort, and the gate errs on the conservative side. A
-dichotomous frequentist rule offers no such graded, checkable
-confidence.</li>
+<strong>Act 3</strong> - the Bayesian deployment probability is
+itself checkable: pooled over many simulated cohorts with known ground
+truth, a higher gate probability reliably means a more deploy-worthy
+cohort, and the gate errs on the conservative side. A dichotomous
+frequentist rule offers no such graded, checkable confidence.</li>
 </ul>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/message.html" class="external-link">suppressMessages</a></span><span class="op">(</span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/therneau/survival" class="external-link">survival</a></span><span class="op">)</span><span class="op">)</span></span>
@@ -148,10 +146,10 @@ validate” means).</p>
 <span><span class="va">dev</span> <span class="op">&lt;-</span> <span class="fu">dgm_weibull</span><span class="op">(</span><span class="fl">4000</span>, beta <span class="op">=</span> <span class="va">DEV_BETA</span>, shape <span class="op">=</span> <span class="va">DEV_SHAPE</span>, rate <span class="op">=</span> <span class="va">DEV_RATE</span>,</span>
 <span>                   cens_rate <span class="op">=</span> <span class="fl">0.35</span><span class="op">)</span><span class="op">$</span><span class="va">data</span></span>
 <span><span class="va">published</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">time</span>, <span class="va">status</span><span class="op">)</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, data <span class="op">=</span> <span class="va">dev</span>, x <span class="op">=</span> <span class="cn">TRUE</span>, y <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
-<p>The clinic’s pre-specified <strong>deployment gate</strong> (fixed
-before seeing local data): (i) adequate discrimination, Harrell C ≥
-0.65; (ii) acceptable calibration, slope in [0.80, 1.25]; (iii) positive
-clinical value, net benefit at threshold 0.2 beats treat-all/none.</p>
+<p>The clinic’s pre-specified deployment gate (fixed before seeing local
+data): (i) adequate discrimination, Harrell C ≥ 0.65; (ii) acceptable
+calibration, slope in [0.80, 1.25]; (iii) positive clinical value, net
+benefit at threshold 0.2 beats treat-all/none.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">C_MIN</span> <span class="op">&lt;-</span> <span class="fl">0.65</span>; <span class="va">SLOPE_LO</span> <span class="op">&lt;-</span> <span class="fl">0.80</span>; <span class="va">SLOPE_HI</span> <span class="op">&lt;-</span> <span class="fl">1.25</span></span>
 <span></span>
@@ -211,24 +209,25 @@ clinical value, net benefit at threshold 0.2 beats treat-all/none.</p>
 <span>  ibs     <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span><span class="op">)</span> <span class="fu"><a href="../reference/metric_brier.html">metric_brier</a></span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span><span class="op">)</span><span class="op">[</span><span class="st">"IBS"</span><span class="op">]</span>,</span>
 <span>  nb      <span class="op">=</span> <span class="fu">metric_dnb</span><span class="op">(</span><span class="va">PT</span>, <span class="va">H5</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># The deployment gate reads only three of these. Act 3 propagates many cohorts x</span></span>
-<span><span class="co"># S draws, so evaluating the full suite there would fit a `polspline::hare`</span></span>
-<span><span class="co"># calibration smoother once per draw for an ICI that the gate never consults.</span></span>
-<span><span class="co"># Metric evaluation draws no random numbers (the Dirichlet weights are drawn</span></span>
-<span><span class="co"># before the metric call in propagate_metric), so the gate probability is</span></span>
-<span><span class="co"># bit-identical to the one the full suite would produce.</span></span>
+<span><span class="co">## The deployment gate reads only three of these. Act 3 propagates many cohorts x</span></span>
+<span><span class="co">## S draws, so evaluating the full suite there would fit a `polspline::hare`</span></span>
+<span><span class="co">## calibration smoother once per draw for an ICI that the gate never consults.</span></span>
+<span><span class="co">## Metric evaluation draws no random numbers (the Dirichlet weights are drawn</span></span>
+<span><span class="co">## before the metric call in propagate_metric), so the gate probability is</span></span>
+<span><span class="co">## bit-identical to the one the full suite would produce.</span></span>
 <span><span class="va">gate_suite</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>harrell <span class="op">=</span> <span class="va">metric_harrell_c</span>,</span>
 <span>                   slope   <span class="op">=</span> <span class="va">metric_cal_slope</span>,</span>
 <span>                   nb      <span class="op">=</span> <span class="fu">metric_dnb</span><span class="op">(</span><span class="va">PT</span>, <span class="va">H5</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<div class="section level3">
-<h3 id="a-fair-frequentist-comparator-the-paired-bootstrap-joint-gate">A fair frequentist comparator: the paired bootstrap joint gate<a class="anchor" aria-label="anchor" href="#a-fair-frequentist-comparator-the-paired-bootstrap-joint-gate"></a>
-</h3>
+</div>
+<div class="section level2">
+<h2 id="a-fair-frequentist-comparator-the-paired-bootstrap-joint-gate">A fair frequentist comparator: the paired bootstrap joint gate<a class="anchor" aria-label="anchor" href="#a-fair-frequentist-comparator-the-paired-bootstrap-joint-gate"></a>
+</h2>
 <p>The dichotomous rule below (all three 95% intervals clear their bars)
 is a deliberately conservative reporting-practice reference. A stronger,
 fairer comparator resamples the evaluation cohort once per replicate and
 recomputes every gate-critical metric on that same replicate, so a
 frequentist analyst can also express the joint deployment event as a
-bootstrap frequency — the direct classical analogue of the Bayesian gate
+bootstrap frequency - the direct classical analogue of the Bayesian gate
 probability. It preserves the dependence across metrics that separate
 marginal intervals discard. <code>with_preserved_rng()</code> shields
 the global stream so this additive comparator never perturbs the
@@ -262,14 +261,14 @@ reproducible draws of the rest of the vignette.</p>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">pass</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span>  <span class="op">}</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="co"># Uncertainty band on each bin's empirical worthy fraction.</span></span>
-<span><span class="co">#</span></span>
-<span><span class="co"># A Wilson (binomial) interval would be wrong here. `worthy` is a deterministic</span></span>
-<span><span class="co"># function of the data-generating configuration, so within a bin it is not a</span></span>
-<span><span class="co"># Bernoulli draw; the only randomness is WHICH cohorts land in the bin. The bin</span></span>
-<span><span class="co"># fraction is therefore a ratio estimator whose numerator and denominator are</span></span>
-<span><span class="co"># both random and dependent. We resample cohorts (the independent unit) and</span></span>
-<span><span class="co"># recompute the fraction inside fixed bin edges, which respects that structure.</span></span>
+<span><span class="co">## Uncertainty band on each bin's empirical worthy fraction.</span></span>
+<span><span class="co">##</span></span>
+<span><span class="co">## A Wilson (binomial) interval would be wrong here. `worthy` is a deterministic</span></span>
+<span><span class="co">## function of the data-generating configuration, so within a bin it is not a</span></span>
+<span><span class="co">## Bernoulli draw; the only randomness is WHICH cohorts land in the bin. The bin</span></span>
+<span><span class="co">## fraction is therefore a ratio estimator whose numerator and denominator are</span></span>
+<span><span class="co">## both random and dependent. We resample cohorts (the independent unit) and</span></span>
+<span><span class="co">## recompute the fraction inside fixed bin edges, which respects that structure.</span></span>
 <span><span class="va">boot_bin_ci</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">df</span>, <span class="va">col</span>, <span class="va">breaks</span>, <span class="va">B</span> <span class="op">=</span> <span class="fl">2000L</span>, <span class="va">seed</span> <span class="op">=</span> <span class="fl">11L</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="va">seed</span><span class="op">)</span></span>
 <span>  <span class="va">lev</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/levels.html" class="external-link">levels</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/cut.html" class="external-link">cut</a></span><span class="op">(</span><span class="va">df</span><span class="op">[[</span><span class="va">col</span><span class="op">]</span><span class="op">]</span>, <span class="va">breaks</span>, include.lowest <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span>
@@ -283,9 +282,9 @@ reproducible draws of the rest of the vignette.</p>
 <span>    emp_hi <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="va">reps</span>, <span class="fl">1</span>, <span class="fu">stats</span><span class="fu">::</span><span class="va"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span>, <span class="fl">0.975</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
-<span><span class="co"># Ranking summary: P(a truly worthy cohort is given a higher gate probability</span></span>
-<span><span class="co"># than a truly unworthy one), ties counted as half. This is the quantity the</span></span>
-<span><span class="co"># diagram actually supports; see the note on the diagonal in reliability_of().</span></span>
+<span><span class="co">## Ranking summary: P(a truly worthy cohort is given a higher gate probability</span></span>
+<span><span class="co">## than a truly unworthy one), ties counted as half. This is the quantity the</span></span>
+<span><span class="co">## diagram actually supports; see the note on the diagonal in reliability_of().</span></span>
 <span><span class="va">gate_auc</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">p</span>, <span class="va">worthy</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">pw</span> <span class="op">&lt;-</span> <span class="va">p</span><span class="op">[</span><span class="va">worthy</span><span class="op">]</span>; <span class="va">pu</span> <span class="op">&lt;-</span> <span class="va">p</span><span class="op">[</span><span class="op">!</span><span class="va">worthy</span><span class="op">]</span></span>
 <span>  <span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">pw</span><span class="op">)</span> <span class="op">||</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">pu</span><span class="op">)</span><span class="op">)</span> <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="cn">NA_real_</span><span class="op">)</span></span>
@@ -300,13 +299,12 @@ reproducible draws of the rest of the vignette.</p>
 <span>  <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">v</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.025</span>, <span class="fl">0.975</span><span class="op">)</span>, names <span class="op">=</span> <span class="cn">FALSE</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
 </div>
-</div>
 <div class="section level2">
-<h2 id="act-1-one-small-local-cohort-frequentist-ambiguity-vs-bayesian-answer">Act 1 — one small local cohort: frequentist ambiguity vs Bayesian
-answer<a class="anchor" aria-label="anchor" href="#act-1-one-small-local-cohort-frequentist-ambiguity-vs-bayesian-answer"></a>
+<h2 id="act-1---one-small-local-cohort-frequentist-ambiguity-vs-bayesian-answer">Act 1 - one small local cohort: frequentist ambiguity vs Bayesian
+answer<a class="anchor" aria-label="anchor" href="#act-1---one-small-local-cohort-frequentist-ambiguity-vs-bayesian-answer"></a>
 </h2>
 <p>Local truth: same signal, but a heavier baseline hazard than the
-development population (a sicker clinic) — the published model is mildly
+development population (a sicker clinic) - the published model is mildly
 mis-calibrated here, which is realistic external validation, not a
 broken model.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
@@ -321,9 +319,10 @@ broken model.</p>
 <span>                     horizons <span class="op">=</span> <span class="va">HZ</span>, S <span class="op">=</span> <span class="fl">1000L</span>, seed <span class="op">=</span> <span class="fl">7</span><span class="op">)</span></span>
 <span><span class="va">J</span>  <span class="op">&lt;-</span> <span class="fu"><a href="../reference/propagate_many.html">propagate_many</a></span><span class="op">(</span><span class="va">ps</span>, <span class="va">suite</span>, weights <span class="op">=</span> <span class="st">"bootstrap"</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="va">Jm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">unclass</a></span><span class="op">(</span><span class="va">J</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">Jm</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">sub</a></span><span class="op">(</span><span class="st">"^[^.]+\\."</span>, <span class="st">""</span>, <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">Jm</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<div class="section level3">
-<h3 id="frequentist-read-out-point-estimate-95-ci">Frequentist read-out: point estimate [95% CI]<a class="anchor" aria-label="anchor" href="#frequentist-read-out-point-estimate-95-ci"></a>
-</h3>
+</div>
+<div class="section level2">
+<h2 id="frequentist-read-out-point-estimate-95-ci">Frequentist read-out: point estimate [95% CI]<a class="anchor" aria-label="anchor" href="#frequentist-read-out-point-estimate-95-ci"></a>
+</h2>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lp</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">colMeans</a></span><span class="op">(</span><span class="va">ps</span><span class="op">$</span><span class="va">eta</span><span class="op">)</span></span>
 <span><span class="va">dfv</span> <span class="op">&lt;-</span> <span class="fu">tibble</span><span class="fu">::</span><span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html" class="external-link">tibble</a></span><span class="op">(</span>time <span class="op">=</span> <span class="va">local</span><span class="op">$</span><span class="va">time</span>, status <span class="op">=</span> <span class="va">local</span><span class="op">$</span><span class="va">status</span>, lp <span class="op">=</span> <span class="va">lp</span><span class="op">)</span></span>
@@ -411,10 +410,10 @@ default)</td>
 <p>The marginal-interval rule does not decide the deployment
 question.</p>
 </div>
-<div class="section level3">
-<h3 id="fair-frequentist-comparator-paired-bootstrap-joint-gate-frequency">Fair frequentist comparator: paired-bootstrap joint-gate
+<div class="section level2">
+<h2 id="fair-frequentist-comparator-paired-bootstrap-joint-gate-frequency">Fair frequentist comparator: paired-bootstrap joint-gate
 frequency<a class="anchor" aria-label="anchor" href="#fair-frequentist-comparator-paired-bootstrap-joint-gate-frequency"></a>
-</h3>
+</h2>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">P_gate_boot</span> <span class="op">&lt;-</span> <span class="fu">paired_boot_gate</span><span class="op">(</span><span class="va">local</span><span class="op">$</span><span class="va">time</span>, <span class="va">local</span><span class="op">$</span><span class="va">status</span>, <span class="va">lp</span>, <span class="va">mean_draw</span><span class="op">$</span><span class="va">surv2d</span>,</span>
 <span>                                B <span class="op">=</span> <span class="fl">2000L</span>, seed <span class="op">=</span> <span class="fl">23</span><span class="op">)</span></span>
@@ -424,9 +423,9 @@ frequency<a class="anchor" aria-label="anchor" href="#fair-frequentist-comparato
 the direct classical analogue of the Bayesian gate probability
 below.</p>
 </div>
-<div class="section level3">
-<h3 id="bayesian-read-out-posteriors-and-deployment-probabilities">Bayesian read-out: posteriors and deployment probabilities<a class="anchor" aria-label="anchor" href="#bayesian-read-out-posteriors-and-deployment-probabilities"></a>
-</h3>
+<div class="section level2">
+<h2 id="bayesian-read-out-posteriors-and-deployment-probabilities">Bayesian read-out: posteriors and deployment probabilities<a class="anchor" aria-label="anchor" href="#bayesian-read-out-posteriors-and-deployment-probabilities"></a>
+</h2>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">qi</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">x</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.025</span>, <span class="fl">0.5</span>, <span class="fl">0.975</span><span class="op">)</span>, names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="va">show</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>C_harrell <span class="op">=</span> <span class="st">"Harrell C"</span>, C_uno <span class="op">=</span> <span class="st">"Uno C"</span>, cal_slope <span class="op">=</span> <span class="st">"Calibration slope"</span>,</span>
@@ -521,10 +520,9 @@ default)</td>
 <p>The joint gate reaches the correct low-probability conclusion where
 every frequentist interval was individually undecided.</p>
 </div>
-</div>
 <div class="section level2">
-<h2 id="act-2-the-joint-gate-is-not-recoverable-from-separate-intervals">Act 2 — the joint gate is not recoverable from separate
-intervals<a class="anchor" aria-label="anchor" href="#act-2-the-joint-gate-is-not-recoverable-from-separate-intervals"></a>
+<h2 id="act-2---the-joint-gate-is-not-recoverable-from-separate-intervals">Act 2 - the joint gate is not recoverable from separate
+intervals<a class="anchor" aria-label="anchor" href="#act-2---the-joint-gate-is-not-recoverable-from-separate-intervals"></a>
 </h2>
 <div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">P_gate_indep</span> <span class="op">&lt;-</span> <span class="va">P_disc</span> <span class="op">*</span> <span class="va">P_cal</span> <span class="op">*</span> <span class="va">P_bene</span></span>
@@ -547,8 +545,8 @@ intervals<a class="anchor" aria-label="anchor" href="#act-2-the-joint-gate-is-no
 <span>            <span class="va">rho_cs</span>, <span class="va">rho_cc</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## posterior corr(slope, dNB) = +0.29 ; corr(C, slope) = +0.90</span></span></code></pre>
 <p>The metrics move together across the posterior; a set of separate
-frequentist intervals throws this dependence away. A paired bootstrap
-that recomputes every metric on the same replicate does preserve this
+frequentist intervals discards this dependence. A paired bootstrap that
+recomputes every metric on the same replicate does preserve this
 dependence and yields a comparable joint frequency; the Bayesian gate
 adds model-parameter uncertainty and a coherent posterior read-out.</p>
 <p>The joint posterior of the two gate-critical metrics, with the gate
@@ -577,8 +575,8 @@ posterior that clears all three criteria at once.</p>
 <p><img src="showcase_small_cohort_files/figure-html/act2-fig-1.png" class="r-plt" alt="" width="624"></p>
 </div>
 <div class="section level2">
-<h2 id="act-3-the-deployment-probability-is-checked-against-known-truth">Act 3 — the deployment probability is checked against known
-truth<a class="anchor" aria-label="anchor" href="#act-3-the-deployment-probability-is-checked-against-known-truth"></a>
+<h2 id="act-3---the-deployment-probability-is-checked-against-known-truth">Act 3 - the deployment probability is checked against known
+truth<a class="anchor" aria-label="anchor" href="#act-3---the-deployment-probability-is-checked-against-known-truth"></a>
 </h2>
 <p>Configurations spanning truly-worthy to truly-unworthy local cohorts,
 with a demo-scale sweep (kept small so this vignette builds
@@ -626,16 +624,16 @@ quickly).</p>
 <span><span class="op">}</span></span>
 <span><span class="va">D</span> <span class="op">&lt;-</span> <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/bind_rows.html" class="external-link">bind_rows</a></span><span class="op">(</span><span class="va">rows</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># QUANTILE bins, not equal-width ones. The gate probability is a conjunction of</span></span>
-<span><span class="co"># three criteria under a diffuse n=120 posterior, so it is heavily right-skewed</span></span>
-<span><span class="co"># and never approaches 1; equal-width bins put most cohorts in [0, 0.2] and</span></span>
-<span><span class="co"># leave the top bin empty, which destroys the resolution of the diagram.</span></span>
-<span><span class="co">#</span></span>
-<span><span class="co"># The 45-degree line is NOT the reference here. Posterior probabilities are</span></span>
-<span><span class="co"># calibrated when averaged over the prior that generated the truth, and the</span></span>
-<span><span class="co"># truth in this study comes from six hand-picked configurations in a fixed</span></span>
-<span><span class="co"># 50/50 worthy/unworthy split, which is not the model's prior. The diagram</span></span>
-<span><span class="co"># therefore reports RANKING and CONSERVATIVENESS; see gate_auc().</span></span>
+<span><span class="co">## QUANTILE bins, not equal-width ones. The gate probability is a conjunction of</span></span>
+<span><span class="co">## three criteria under a diffuse n=120 posterior, so it is heavily right-skewed</span></span>
+<span><span class="co">## and never approaches 1; equal-width bins put most cohorts in [0, 0.2] and</span></span>
+<span><span class="co">## leave the top bin empty, which destroys the resolution of the diagram.</span></span>
+<span><span class="co">##</span></span>
+<span><span class="co">## The 45-degree line is NOT the reference here. Posterior probabilities are</span></span>
+<span><span class="co">## calibrated when averaged over the prior that generated the truth, and the</span></span>
+<span><span class="co">## truth in this study comes from six hand-picked configurations in a fixed</span></span>
+<span><span class="co">## 50/50 worthy/unworthy split, which is not the model's prior. The diagram</span></span>
+<span><span class="co">## therefore reports RANKING and CONSERVATIVENESS; see gate_auc().</span></span>
 <span><span class="va">reliability_of</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">df</span>, <span class="va">col</span>, <span class="va">K</span> <span class="op">=</span> <span class="fl">4L</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">br</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">df</span><span class="op">[[</span><span class="va">col</span><span class="op">]</span><span class="op">]</span>, <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span>, length.out <span class="op">=</span> <span class="va">K</span> <span class="op">+</span> <span class="fl">1L</span><span class="op">)</span>,</span>
 <span>                               names <span class="op">=</span> <span class="cn">FALSE</span>, type <span class="op">=</span> <span class="fl">7</span><span class="op">)</span><span class="op">)</span></span>
@@ -767,7 +765,7 @@ quickly).</p>
 gives an over/under-confident yes/no only at this sample size. Both are
 also <em>conservative</em>: the mean stated probability sits below the
 base rate of truly worthy cohorts. That is expected, and it is why the
-45-degree line is not the reference — the truth here comes from six
+45-degree line is not the reference - the truth here comes from six
 hand-picked configurations in a fixed 50/50 split, which is not the
 model’s prior, and posterior probabilities are calibrated only when
 averaged over the prior that generated the truth.</p>
@@ -800,19 +798,19 @@ orientation only.</p>
 <span>  <span class="fu"><a href="../reference/theme_bayesval.html">theme_bayesval</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p><img src="showcase_small_cohort_files/figure-html/act3-fig-1.png" class="r-plt" alt="" width="624"></p>
 <p>The Bayesian deployment probability ranks cohorts by true worthiness
-— a graded, checkable confidence a dichotomous frequentist rule cannot
+- a graded, checkable confidence a dichotomous frequentist rule cannot
 offer. The paired-bootstrap gate is overlaid as the fair frequentist
 comparator.</p>
-<div class="section level3">
-<h3 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
-</h3>
+</div>
+<div class="section level2">
+<h2 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
+</h2>
 <p><code>bayesval</code> is the software companion to:</p>
 <blockquote>
 <p>Otte WM, Kampman SL, […] <em>A Bayesian framework for validating
 survival prediction models: posterior credible intervals for
 discrimination, calibration, and clinical utility.</em> in prep.</p>
 </blockquote>
-</div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
