@@ -25,6 +25,8 @@ navbar:
       - text: "Showcase: Mayo PBC cohort"
         href: articles/showcase_pbc.html
       - text: "-------"
+      - text: "Worked example with the full-Bayes model (pre-rendered)"
+        href: articles/worked_example_stan.html
       - text: "Full-Bayes MCMC vs Cox-Laplace (pre-rendered)"
         href: articles/small_sample_stan_vs_laplace.html
 

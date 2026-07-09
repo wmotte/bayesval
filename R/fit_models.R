@@ -1,7 +1,7 @@
 # fit_models.R
 # ---------------------------------------------------------------------------
-# B1 — the model layer. Fit a survival model in a fully Bayesian way and return
-# a `psurv` (posterior survival array). One dispatcher covers the primary Stan
+# B1 -- the model layer. Fit a Bayesian survival model and return a `psurv`
+# (posterior survival array). One dispatcher covers the primary Stan
 # path and the `survival`-only Laplace/Cox fallback used for fast, dependency-
 # light testing of the rest of the framework.
 # ---------------------------------------------------------------------------
@@ -11,10 +11,11 @@
 #' @param formula survival formula, Surv(time, status) ~ covariates.
 #' @param data    training/evaluation data.frame.
 #' @param horizons `numeric[H]` evaluation horizons.
-#' @param backend "stan_surv" (rstanarm M-spline PH; primary), "pwexp"
-#'                (piecewise-exponential Poisson-trick PH; robustness comparator,
-#'                survival-only), "bart" (nonparametric BART survival), or
-#'                "coxph" (Cox-Laplace approximation; fallback / testing).
+#' @param backend "stan_pwexp" (primary rstan piecewise-exponential PH),
+#'                "stan_surv" (rstanarm M-spline PH if available), "pwexp"
+#'                (piecewise-exponential Poisson-trick PH; survival-only),
+#'                "bart" (nonparametric BART survival), or "coxph"
+#'                (Cox-Laplace approximation; fallback / testing).
 #' @param time,status column names (needed for the stan_surv prediction step).
 #' @param S       number of posterior draws (coxph backend) / thinning target.
 #' @param ...     passed to the backend fitter (priors, chains, cuts, etc.).
@@ -31,7 +32,7 @@ fit_bayes_survival <- function(formula, data, horizons,
     return(psurv_from_pwexp(formula, data, horizons, S = S, ...))
   }
   if (backend == "stan_pwexp") {
-    # genuine full-Bayes PH via hand-written rstan model (fit_stan_pwexp.R);
+    # Full-likelihood Bayesian PH via hand-written rstan model (fit_stan_pwexp.R);
     # this is the working primary Bayesian path since CRAN rstanarm ships no
     # stan_surv. Return its psurv with the full fit attached for loo/diagnostics.
     obj <- fit_stan_pwexp(formula, data, horizons, S = S, ...)
@@ -50,7 +51,7 @@ fit_bayes_survival <- function(formula, data, horizons,
       !exists("stan_surv", where = asNamespace("rstanarm"), inherits = FALSE))
     stop("backend = 'stan_surv' needs rstanarm::stan_surv, which CRAN rstanarm ",
          "does not currently ship (it lives on an unmerged GitHub branch). Use ",
-         "backend = 'stan_pwexp' (the primary full-Bayes path) or 'coxph' instead.")
+         "backend = 'stan_pwexp' (the primary full-likelihood path) or 'coxph' instead.")
   if (is.null(time) || is.null(status))
     stop("Provide `time` and `status` column names for the stan_surv backend.")
   stan_surv_fn <- get("stan_surv", envir = asNamespace("rstanarm"))

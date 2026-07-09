@@ -21,8 +21,8 @@ to develop a standard Cox model on the randomized trial participants (n = 312,
 eligible patients (n = 106, 36 events).
 
 With only 36 events in the validation cohort, classical frequentist confidence
-intervals for validation metrics are wide, often leading to ambiguous
-deployment decisions. The Bayesian framework yields a coherent deployment gate
+intervals for separate performance measures are wide, often leading to ambiguous
+local-use decisions. The posterior workflow yields a coherent deployment gate
 probability instead.
 
 ```{r load}

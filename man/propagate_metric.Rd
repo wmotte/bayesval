@@ -33,7 +33,9 @@ Dirichlet(1) reweight per draw), or a user matrix \verb{[S x n]}.}
 }
 \value{
 a \code{posterior_metric} object: matrix \verb{[S_used x K]} of draws plus the
-metric names; summarise with summary().
+metric names; summarise with summary(). The summary reports
+non-finite draw counts and flags metrics with more than 5\% non-finite
+draws by default.
 }
 \description{
 Propagate a per-draw metric across the posterior (B2), optionally with the

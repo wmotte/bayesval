@@ -2,12 +2,11 @@
 # ---------------------------------------------------------------------------
 # B2 — the single estimation principle of the framework.
 #
-# Any validation metric M (Harrell C, Uno C, ICI, IBS, net benefit, ...) is a
-# functional M(S^(s), data ; g^(s)) of the predicted-survival object and the
-# data. For each posterior draw s we evaluate M with an *existing* frequentist
-# estimator; the collection {M^(s)} IS the posterior of the metric. No new
-# point estimators are invented — this is the wrapper that makes every standard
-# validation number Bayesian.
+# Any performance estimator M (Harrell C, Uno C, ICI, IBS, net benefit, ...) is
+# a functional M(S^(s), data ; g^(s)) of the predicted-survival object and the
+# data. For each posterior draw s we evaluate M with an existing estimator; the
+# collection {M^(s)} is the posterior distribution induced for that finite-sample
+# estimator. No new point estimators are invented.
 #
 # B3 — two variance sources. Passing weights = "bootstrap" attaches a fresh
 # Dirichlet(1,...,1) weight vector g^(s) over the n evaluation subjects at each
@@ -30,12 +29,15 @@
 #' @param seed      RNG seed for the bootstrap weights (reproducibility).
 #' @param progress  print a dot every 10% of draws.
 #' @return a `posterior_metric` object: matrix `[S_used x K]` of draws plus the
-#'         metric names; summarise with summary().
+#'         metric names; summarise with summary(). The summary reports
+#'         non-finite draw counts and flags metrics with more than 5% non-finite
+#'         draws by default.
 #' @export
 propagate_metric <- function(ps, metric_fn,
                              weights = c("none", "bootstrap"),
                              draws = NULL, seed = 1L, progress = FALSE) {
   stopifnot(inherits(ps, "psurv"))
+  metric_label <- paste(deparse(substitute(metric_fn)), collapse = " ")
   user_w <- NULL
   if (is.matrix(weights)) { user_w <- weights; wmode <- "user" }
   else { wmode <- match.arg(weights) }
@@ -62,7 +64,17 @@ propagate_metric <- function(ps, metric_fn,
   mat <- do.call(rbind, lapply(out, function(v) as.numeric(v)))
   if (!is.null(nm)) colnames(mat) <- nm
   structure(mat, class = c("posterior_metric", "matrix"),
-            weights = wmode, label = ps$label)
+            weights = wmode, label = ps$label, seed = seed,
+            metric = metric_label, package_version = .bayesval_version())
+}
+
+#' Installed package version, for attaching to propagated results (falls back
+#' to "dev" when the package is loaded via `source()` and not installed).
+#' @keywords internal
+.bayesval_version <- function() {
+  v <- tryCatch(as.character(utils::packageVersion("bayesval")),
+                error = function(e) NA_character_)
+  if (is.na(v)) "dev" else v
 }
 
 #' Resolve a draw subset: NULL = all; an integer = evenly thinned count; a
@@ -101,7 +113,7 @@ propagate_many <- function(ps, metric_fns,
 
 #' @export
 summary.posterior_metric <- function(object, probs = c(0.025, 0.5, 0.975),
-                                      ...) {
+                                      nonfinite_threshold = 0.05, ...) {
   m <- unclass(object)
   if (is.null(dim(m))) m <- matrix(m, ncol = 1L)
   nm <- colnames(m) %||% paste0("V", seq_len(ncol(m)))
@@ -109,12 +121,27 @@ summary.posterior_metric <- function(object, probs = c(0.025, 0.5, 0.975),
   # One tidy row per metric column (K is small — this is not a hot per-draw loop).
   res <- purrr::map_dfr(seq_len(ncol(m)), function(j) {
     col <- m[, j]
-    q <- stats::quantile(col, probs = probs, na.rm = TRUE, names = FALSE)
-    tibble::tibble(metric = nm[j], mean = mean(col, na.rm = TRUE),
-                   median = q[med_i], lower = q[1L], upper = q[length(q)])
+    finite <- is.finite(col)
+    n_draws <- length(col)
+    n_finite <- sum(finite)
+    n_nonfinite <- n_draws - n_finite
+    pct_nonfinite <- n_nonfinite / n_draws
+    q <- if (n_finite > 0L) {
+      stats::quantile(col[finite], probs = probs, names = FALSE)
+    } else {
+      rep(NA_real_, length(probs))
+    }
+    avg <- if (n_finite > 0L) mean(col[finite]) else NA_real_
+    tibble::tibble(metric = nm[j], mean = avg,
+                   median = q[med_i], lower = q[1L], upper = q[length(q)],
+                   n_draws = n_draws, n_finite = n_finite,
+                   n_nonfinite = n_nonfinite,
+                   pct_nonfinite = pct_nonfinite,
+                   flag_unreliable = pct_nonfinite > nonfinite_threshold)
   })
-  attr(res, "probs")   <- probs
+  attr(res, "probs") <- probs
   attr(res, "weights") <- attr(object, "weights")
+  attr(res, "nonfinite_threshold") <- nonfinite_threshold
   res
 }
 

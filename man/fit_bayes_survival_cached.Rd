@@ -24,10 +24,11 @@ fit_bayes_survival_cached(
 
 \item{horizons}{\code{numeric[H]} evaluation horizons.}
 
-\item{backend}{"stan_surv" (rstanarm M-spline PH; primary), "pwexp"
-(piecewise-exponential Poisson-trick PH; robustness comparator,
-survival-only), "bart" (nonparametric BART survival), or
-"coxph" (Cox-Laplace approximation; fallback / testing).}
+\item{backend}{"stan_pwexp" (primary rstan piecewise-exponential PH),
+"stan_surv" (rstanarm M-spline PH if available), "pwexp"
+(piecewise-exponential Poisson-trick PH; survival-only),
+"bart" (nonparametric BART survival), or "coxph"
+(Cox-Laplace approximation; fallback / testing).}
 
 \item{S}{number of posterior draws (coxph backend) / thinning target.}
 

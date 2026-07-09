@@ -7,8 +7,8 @@
 # t_h it stores the predicted survival S_i(t_h)^(s) and the linear predictor
 # eta_i^(s), together with the observed evaluation data (time, status, X).
 #
-# Every validation metric in Part B is a *functional* of this object plus the
-# data (B2). Keeping a single, model-agnostic representation is what makes the
+# Every performance estimator in Part B is a *functional* of this object plus
+# the data (B2). Keeping a single, model-agnostic representation is what makes the
 # framework work identically for stan_surv, a piecewise-exponential model, BART
 # survival, or the Laplace/Cox fallback used for fast testing.
 # ---------------------------------------------------------------------------

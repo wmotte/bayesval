@@ -22,10 +22,11 @@ fit_bayes_survival(
 
 \item{horizons}{\code{numeric[H]} evaluation horizons.}
 
-\item{backend}{"stan_surv" (rstanarm M-spline PH; primary), "pwexp"
-(piecewise-exponential Poisson-trick PH; robustness comparator,
-survival-only), "bart" (nonparametric BART survival), or
-"coxph" (Cox-Laplace approximation; fallback / testing).}
+\item{backend}{"stan_pwexp" (primary rstan piecewise-exponential PH),
+"stan_surv" (rstanarm M-spline PH if available), "pwexp"
+(piecewise-exponential Poisson-trick PH; survival-only),
+"bart" (nonparametric BART survival), or "coxph"
+(Cox-Laplace approximation; fallback / testing).}
 
 \item{time, status}{column names (needed for the stan_surv prediction step).}
 

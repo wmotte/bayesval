@@ -5,9 +5,11 @@
 # distinct from discrimination. Each function has signature metric_fn(draw, w).
 #
 # The smooth "observed" calibration curve pi_hat^cal_i(t) is obtained via
-# polspline::hare when available (the manuscript's primary estimator), else a
+# polspline::hare when available (the manuscript's flexible estimator), else a
 # grouped Kaplan-Meier fallback that needs only `survival`, so the pipeline runs
-# out of the box.
+# out of the box. The grouped fallback accepts Bayesian-bootstrap case weights;
+# polspline::hare does not expose case weights in the CRAN API, so HARE-based
+# curves are unweighted and the final ICI/E50/E90 average is weighted.
 # ---------------------------------------------------------------------------
 
 #' Calibration-in-the-large at each horizon (per draw): mean predicted risk vs
@@ -51,6 +53,9 @@ metric_cal_slope <- function(draw, w = NULL) {
 #' @param w    length-n case-weight vector (sums to 1); `NULL` uses uniform weights.
 #' @param horizon index into draw$horizons (default: last).
 #' @param method  "auto" (hare if installed else group), "hare", or "group".
+#'   The grouped method is fully case-weighted. HARE smoothing is unweighted
+#'   because `polspline::hare()` has no case-weight argument; the final
+#'   ICI/E50/E90 aggregation still uses `w`.
 #' @return c(ICI = , E50 = , E90 = )
 #' @export
 metric_ici <- function(draw, w = NULL, horizon = NULL,
@@ -133,10 +138,18 @@ metric_dcalibration <- function(draw, w = NULL, bins = 10L) {
   if (use_hare) {
     out <- tryCatch(.calib_hare(pred_risk, time, status, t),
                     error = function(e) NULL)
-    if (!is.null(out)) return(out)
-    # fall through to grouped if hare failed numerically.
+    if (!is.null(out)) {
+      attr(out, "smoother") <- "hare"
+      return(out)
+    }
+    warning("HARE calibration smoother failed to converge; falling back to ",
+           "grouped Kaplan-Meier.", call. = FALSE)
   }
-  .calib_group(pred_risk, time, status, t, w, groups)
+  out <- .calib_group(pred_risk, time, status, t, w, groups)
+  attr(out, "smoother") <- if (method == "hare" ||
+      (method == "auto" && requireNamespace("polspline", quietly = TRUE)))
+    "group (hare fallback)" else "group"
+  out
 }
 
 # hare: flexible hazard regression S(t | predictor). Predictor on cloglog scale.

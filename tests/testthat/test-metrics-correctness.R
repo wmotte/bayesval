@@ -3,7 +3,6 @@
 # linear predictor, to numerical tolerance.
 library(testthat)
 suppressMessages(library(survival))
-
 make_draw <- function(seed = 1L, n = 400L) {
   set.seed(seed)
   x1 <- rnorm(n); x2 <- rbinom(n, 1, 0.4)
@@ -168,6 +167,18 @@ test_that("propagate_metric returns one row per used draw and summarises", {
   expect_equal(nrow(unclass(pm)), S)
   s <- summary(pm)
   expect_true(all(c("median", "lower", "upper") %in% names(s)))
+})
+
+test_that("posterior_metric summary audits non-finite draws", {
+  x <- matrix(c(1, 2, NA, Inf, 5, 6, 7, 8, 9, 10), ncol = 1)
+  colnames(x) <- "unstable"
+  class(x) <- c("posterior_metric", "matrix")
+  s <- summary(x, nonfinite_threshold = 0.1)
+  expect_equal(s$n_draws, 10L)
+  expect_equal(s$n_nonfinite, 2L)
+  expect_equal(s$pct_nonfinite, 0.2)
+  expect_true(s$flag_unreliable)
+  expect_equal(s$median, 6.5)
 })
 
 test_that("Bayesian bootstrap widens the interval vs parameter-only (B3)", {

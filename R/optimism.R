@@ -23,7 +23,7 @@ loo_survival <- function(log_lik) {
   loo::loo(log_lik, r_eff = r_eff)
 }
 
-#' Bayesian-bootstrap optimism correction for a scalar validation metric.
+#' Bayesian-bootstrap optimism correction for a scalar performance estimator.
 #'
 #' @param fit_psurv function(data, weights) -> a `psurv` fitted on `data`
 #'                  (weights are Dirichlet case weights; pass to the fitter or

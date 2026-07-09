@@ -14,7 +14,10 @@ metric_ici(draw, w = NULL, horizon = NULL, method = c("auto", "hare", "group"))
 
 \item{horizon}{index into draw$horizons (default: last).}
 
-\item{method}{"auto" (hare if installed else group), "hare", or "group".}
+\item{method}{"auto" (hare if installed else group), "hare", or "group".
+The grouped method is fully case-weighted. HARE smoothing is unweighted
+because \code{polspline::hare()} has no case-weight argument; the final
+ICI/E50/E90 aggregation still uses \code{w}.}
 }
 \value{
 c(ICI = , E50 = , E90 = )

@@ -2,7 +2,7 @@
 % Please edit documentation in R/optimism.R
 \name{bb_optimism}
 \alias{bb_optimism}
-\title{Bayesian-bootstrap optimism correction for a scalar validation metric.}
+\title{Bayesian-bootstrap optimism correction for a scalar performance estimator.}
 \usage{
 bb_optimism(
   fit_psurv,
@@ -36,5 +36,5 @@ list with $apparent (on full data), $optimism (mean and per-rep),
 and $corrected = apparent - mean(optimism).
 }
 \description{
-Bayesian-bootstrap optimism correction for a scalar validation metric.
+Bayesian-bootstrap optimism correction for a scalar performance estimator.
 }

@@ -1,10 +1,10 @@
 # diagnostics.R
 # ---------------------------------------------------------------------------
 # B1 quality gates (checklist 1): the MCMC-convergence gate that must pass
-# before any metric is propagated from a stan_surv fit, and the prior-
-# sensitivity harness. Both operate on the primary Bayesian path (rstanarm
-# stan_surv); the survival-only coxph/pwexp Laplace backends have no MCMC, so
-# the gate reports "not applicable" for them rather than failing.
+# before any metric is propagated from an MCMC fit, and the prior-
+# sensitivity harness. Both operate on the primary Bayesian path; the
+# survival-only coxph/pwexp Laplace backends have no MCMC, so the gate reports
+# "not applicable" for them and passes.
 # ---------------------------------------------------------------------------
 
 #' MCMC convergence diagnostics for a fitted Bayesian survival model.
@@ -83,9 +83,9 @@ check_mcmc_gate <- function(fit, max_rhat = 1.01, min_ess = 400,
   structure(ok, diagnostics = d)
 }
 
-#' Prior-sensitivity analysis (checklist 1): refit the primary full-Bayes PH
+#' Prior-sensitivity analysis (checklist 1): refit the primary Bayesian PH
 #' model (fit_stan_pwexp) under several log-HR prior SDs and compare the
-#' posterior of each validation metric. A robust conclusion should be stable
+#' posterior of each performance estimator. A robust conclusion should be stable
 #' across weakly-informative priors; a large shift flags prior-dependence.
 #'
 #' Uses `beta_scale` (the Normal(0, beta_scale) SD on the log-hazard-ratios) as

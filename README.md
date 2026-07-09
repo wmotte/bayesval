@@ -1,19 +1,21 @@
 # bayesval
 
-Bayesian probabilistic validation of Cox proportional-hazards prediction
-models. Every discrimination, calibration, and clinical-utility metric you
-would normally compute once — Harrell/Uno/Gonen-Heller/Antolini concordance,
-time-dependent AUC, calibration-in-the-large, calibration slope, ICI/E50/E90,
-D-calibration, IPCW Brier/IBS/IPA, R²_D, decision-curve net benefit — is
-instead reported as a **posterior distribution** with a 95% credible interval.
+Bayesian posterior-propagation for performance assessment of Cox
+proportional-hazards prediction models. Each finite-sample performance
+estimator you would normally compute once — Harrell/Uno/Gonen-Heller/Antolini
+concordance, time-dependent AUC, calibration-in-the-large, calibration slope,
+ICI/E50/E90, D-calibration, IPCW Brier/IBS/IPA, R²_D, decision-curve net benefit
+— is evaluated over posterior survival draws and reported as an induced
+posterior distribution with a 95% credible interval.
 
-The single idea behind the package: every validation metric `M` is a
+The single idea behind the package: every performance estimator `M` is a
 functional `M(S, data)` of a posterior survival object and the data. Evaluate
-the existing frequentist estimator at each posterior draw; the collection of
-per-draw values **is** the metric's posterior. No new point estimators —
-`propagate_metric()` is the only wrapper. Two uncertainty sources are
-propagated coherently: model-parameter uncertainty (posterior draws) and
-evaluation-sample uncertainty (a Bayesian bootstrap over the validation set).
+the existing estimator at each posterior draw; the collection of per-draw values
+is the posterior distribution induced for that finite-sample estimator. No new
+point estimators: `propagate_metric()` is the propagation wrapper. Two
+uncertainty sources are kept explicit: model-parameter uncertainty (posterior
+draws) and evaluation-sample uncertainty (a Bayesian bootstrap over the
+validation set).
 
 ## Installation
 
@@ -23,9 +25,10 @@ remotes::install_github("wmotte/bayesval")
 ```
 
 The modelling core needs only `survival`; everything below works without a
-Stan toolchain via the `coxph` backend. The full-Bayes path (`rstan`), BART
-comparator (`BART`), and a few optional calibration/decision-curve estimators
-are Suggested, not required — install them only if you use that backend.
+Stan toolchain via the `coxph` backend. The full-likelihood MCMC path (`rstan`),
+BART comparator (`BART`), and a few optional calibration/decision-curve
+estimators are Suggested, not required — install them only if you use that
+backend.
 
 ## Quick start
 
@@ -59,7 +62,7 @@ above is backend-agnostic:
 
 | backend | needs | role |
 |---|---|---|
-| `stan_pwexp` | `rstan` | **primary** full-Bayes piecewise-exponential PH (MCMC) |
+| `stan_pwexp` | `rstan` | primary full-likelihood Bayesian piecewise-exponential PH (MCMC) |
 | `pwexp` | `survival` | piecewise-exponential Poisson-trick PH (GLM + Laplace) |
 | `coxph` | `survival` | Cox-Laplace approximation (fast fallback / no Stan) |
 | `bart` | `BART` | nonparametric Bayesian survival comparator |
@@ -72,7 +75,7 @@ log-hazard-ratio prior scales to check robustness.
 ## Documentation
 
 `?propagate_metric` is the entry point for writing a new metric; every
-`metric_*()` function follows the same `function(draw, w)` signature and can
+`metric_*()` function follows the same `function(draw, w)` signature. `summary()` also audits non-finite posterior draws and flags metrics with more than 5% non-finite values. Metrics can
 be passed to it directly. See the function reference (`help(package =
 "bayesval")`) for the full API.
 

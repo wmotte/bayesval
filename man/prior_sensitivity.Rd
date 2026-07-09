@@ -2,9 +2,9 @@
 % Please edit documentation in R/diagnostics.R
 \name{prior_sensitivity}
 \alias{prior_sensitivity}
-\title{Prior-sensitivity analysis (checklist 1): refit the primary full-Bayes PH
+\title{Prior-sensitivity analysis (checklist 1): refit the primary Bayesian PH
 model (fit_stan_pwexp) under several log-HR prior SDs and compare the
-posterior of each validation metric. A robust conclusion should be stable
+posterior of each performance estimator. A robust conclusion should be stable
 across weakly-informative priors; a large shift flags prior-dependence.}
 \usage{
 prior_sensitivity(
