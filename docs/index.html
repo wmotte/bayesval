@@ -61,27 +61,41 @@
   <main id="main" class="col-md-9"><div class="section level1">
 <div class="page-header"><h1 id="bayesval">bayesval<a class="anchor" aria-label="anchor" href="#bayesval"></a>
 </h1></div>
-<p>Bayesian posterior-propagation for performance assessment of Cox proportional-hazards prediction models. Each finite-sample performance estimator you would normally compute once — Harrell/Uno/Gonen-Heller/Antolini concordance, time-dependent AUC, calibration-in-the-large, calibration slope, ICI/E50/E90, D-calibration, IPCW Brier/IBS/IPA, R²_D, decision-curve net benefit — is evaluated over posterior survival draws and reported as an induced posterior distribution with a 95% credible interval.</p>
-<p>The single idea behind the package: every performance estimator <code>M</code> is a functional <code>M(S, data)</code> of a posterior survival object and the data. Evaluate the existing estimator at each posterior draw; the collection of per-draw values is the posterior distribution induced for that finite-sample estimator. No new point estimators: <code><a href="reference/propagate_metric.html">propagate_metric()</a></code> is the propagation wrapper. Two uncertainty sources are kept explicit: model-parameter uncertainty (posterior draws) and evaluation-sample uncertainty (a Bayesian bootstrap over the validation set).</p>
+<p><code>bayesval</code> helps validate survival prediction models when the fitted model is Bayesian, but the validation estimators are the familiar finite-sample tools clinicians and methodologists already use. It evaluates those estimators across posterior survival draws and reports the induced uncertainty.</p>
+<p>In practice this means that Harrell/Uno/Gonen-Heller/Antolini concordance, time-dependent AUC, calibration-in-the-large, calibration slope, ICI/E50/E90, D-calibration, IPCW Brier/IBS/IPA, R²_D, and decision-curve net benefit can be reported as posterior distributions with credible intervals. The core idea is simple: every performance estimator <code>M</code> is treated as a functional <code>M(S, data)</code> of a posterior survival object and the validation data. Evaluate the existing estimator at each posterior draw; the collection of per-draw values is the posterior distribution for that finite-sample estimator.</p>
+<p>Two uncertainty sources are kept explicit: model-parameter uncertainty from the posterior survival draws, and evaluation-sample uncertainty from a Bayesian bootstrap over the validation set. No new point estimators are introduced; <code><a href="reference/propagate_metric.html">propagate_metric()</a></code> is the propagation wrapper.</p>
+<div class="section level2">
+<h2 id="status">Status<a class="anchor" aria-label="anchor" href="#status"></a>
+</h2>
+<p><code>bayesval</code> is a research package under active development and accompanies the survival-validation manuscript listed below. The fast examples use the <code>coxph</code> backend and run without Stan. Full Bayesian MCMC examples use the <code>stan_pwexp</code> backend and require a working <code>rstan</code> toolchain; they may take several minutes.</p>
+</div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
+<p>Install the package from GitHub:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("remotes")</span></span>
 <span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"wmotte/bayesval"</span><span class="op">)</span></span></code></pre></div>
-<p>The modelling core needs only <code>survival</code>; everything below works without a Stan toolchain via the <code>coxph</code> backend. The full-likelihood MCMC path (<code>rstan</code>), BART comparator (<code>BART</code>), and a few optional calibration/decision-curve estimators are Suggested, not required — install them only if you use that backend.</p>
+<p>The modelling core needs only the imported package dependencies, including <code>survival</code>, <code>dplyr</code>, <code>purrr</code>, <code>tibble</code>, and <code>ggplot2</code>. Optional backends and comparators need additional Suggested packages:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"posterior"</span>, <span class="st">"loo"</span>, <span class="st">"BART"</span>, <span class="st">"riskRegression"</span>, <span class="st">"pec"</span>,</span>
+<span>                   <span class="st">"timeROC"</span>, <span class="st">"survC1"</span>, <span class="st">"CPE"</span>, <span class="st">"dcurves"</span>, <span class="st">"ggdist"</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Optional, platform-sensitive: needed only for the full Bayesian Stan backend.</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"rstan"</span><span class="op">)</span></span></code></pre></div>
+<p>Install optional packages only for the backend or metric family you intend to use. Stan setup is the slowest part of the toolchain; the quick start below uses only the survival-based <code>coxph</code> path.</p>
 </div>
 <div class="section level2">
 <h2 id="quick-start">Quick start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
 </h2>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/wmotte/bayesval" class="external-link">bayesval</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span>; <span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">500</span></span>
 <span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>x1 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span>, x2 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n</span>, <span class="fl">1</span>, <span class="fl">0.4</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">dat</span><span class="op">$</span><span class="va">time</span>   <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Exponential.html" class="external-link">rexp</a></span><span class="op">(</span><span class="va">n</span>, <span class="fl">0.15</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="fl">0.8</span> <span class="op">*</span> <span class="va">dat</span><span class="op">$</span><span class="va">x1</span> <span class="op">-</span> <span class="fl">0.5</span> <span class="op">*</span> <span class="va">dat</span><span class="op">$</span><span class="va">x2</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">dat</span><span class="op">$</span><span class="va">status</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n</span>, <span class="fl">1</span>, <span class="fl">0.7</span><span class="op">)</span></span>
-<span><span class="va">hz</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">dat</span><span class="op">$</span><span class="va">time</span><span class="op">[</span><span class="va">dat</span><span class="op">$</span><span class="va">status</span> <span class="op">==</span> <span class="fl">1</span><span class="op">]</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">.25</span>, <span class="fl">.5</span>, <span class="fl">.75</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">hz</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">dat</span><span class="op">$</span><span class="va">time</span><span class="op">[</span><span class="va">dat</span><span class="op">$</span><span class="va">status</span> <span class="op">==</span> <span class="fl">1</span><span class="op">]</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">.25</span>, <span class="fl">.5</span>, <span class="fl">.75</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">ps</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/fit_bayes_survival.html">fit_bayes_survival</a></span><span class="op">(</span><span class="fu">survival</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">time</span>, <span class="va">status</span><span class="op">)</span> <span class="op">~</span> <span class="va">x1</span> <span class="op">+</span> <span class="va">x2</span>, <span class="va">dat</span>, <span class="va">hz</span>,</span>
 <span>                         backend <span class="op">=</span> <span class="st">"coxph"</span>, S <span class="op">=</span> <span class="fl">300</span><span class="op">)</span>           <span class="co"># survival-only</span></span>
@@ -94,11 +108,12 @@
 <span><span class="fu"><a href="reference/propagate_metric.html">propagate_metric</a></span><span class="op">(</span><span class="va">ps</span>, <span class="va">metric_harrell_c</span>, weights <span class="op">=</span> <span class="st">"bootstrap"</span><span class="op">)</span>  <span class="co"># + eval-set uncertainty</span></span>
 <span><span class="fu"><a href="reference/ppc_calibration.html">ppc_calibration</a></span><span class="op">(</span><span class="va">ps</span>, horizon <span class="op">=</span> <span class="fl">2</span><span class="op">)</span><span class="op">$</span><span class="va">ppp</span>                            <span class="co"># calibration PPC</span></span>
 <span><span class="fu"><a href="reference/posterior_net_benefit.html">posterior_net_benefit</a></span><span class="op">(</span><span class="va">ps</span><span class="op">)</span><span class="op">$</span><span class="va">p_useful</span>                              <span class="co"># decision-curve layer</span></span></code></pre></div>
+<p><code><a href="reference/posterior_table.html">posterior_table()</a></code> returns one row per metric with the posterior mean, median, credible interval, draw counts, and a reliability flag. Adding <code>weights = "bootstrap"</code> widens the target from model-parameter uncertainty alone to model plus validation-sample uncertainty. <code><a href="reference/ppc_calibration.html">ppc_calibration()</a></code> returns a posterior predictive p-value for calibration at the requested horizon.</p>
 </div>
 <div class="section level2">
 <h2 id="model-backends">Model backends<a class="anchor" aria-label="anchor" href="#model-backends"></a>
 </h2>
-<p>Every backend returns the same model-agnostic <code>psurv</code> object (an <code>[S x n x H]</code> posterior survival array plus the linear predictor), so every metric above is backend-agnostic:</p>
+<p>Every backend returns the same model-agnostic <code>psurv</code> object: an <code>[S x n x H]</code> posterior survival array plus the linear predictor. Downstream metrics are therefore backend-agnostic.</p>
 <table class="table">
 <colgroup>
 <col width="33%">
@@ -108,44 +123,65 @@
 <thead><tr>
 <th>backend</th>
 <th>needs</th>
-<th>role</th>
+<th>use when</th>
 </tr></thead>
 <tbody>
 <tr>
-<td><code>stan_pwexp</code></td>
-<td><code>rstan</code></td>
-<td>primary full-likelihood Bayesian piecewise-exponential PH (MCMC)</td>
+<td><code>coxph</code></td>
+<td><code>survival</code></td>
+<td>you want fast examples, teaching code, or a no-Stan fallback</td>
 </tr>
 <tr>
 <td><code>pwexp</code></td>
 <td><code>survival</code></td>
-<td>piecewise-exponential Poisson-trick PH (GLM + Laplace)</td>
+<td>you want a piecewise-exponential Poisson-trick PH model with a Laplace approximation</td>
 </tr>
 <tr>
-<td><code>coxph</code></td>
-<td><code>survival</code></td>
-<td>Cox-Laplace approximation (fast fallback / no Stan)</td>
+<td><code>stan_pwexp</code></td>
+<td><code>rstan</code></td>
+<td>you want the primary full-likelihood Bayesian piecewise-exponential PH workflow</td>
 </tr>
 <tr>
 <td><code>bart</code></td>
 <td><code>BART</code></td>
-<td>nonparametric Bayesian survival comparator</td>
+<td>you want a nonparametric Bayesian survival comparator</td>
 </tr>
 <tr>
 <td><code>stan_surv</code></td>
 <td>
-<code>rstanarm</code> w/ <code>stan_surv</code>
+<code>rstanarm</code> with <code>stan_surv</code>
 </td>
-<td>M-spline PH (aspirational; not yet in CRAN rstanarm)</td>
+<td>aspirational/conditional; not available in the CRAN <code>rstanarm</code> release</td>
 </tr>
 </tbody>
 </table>
-<p>MCMC fits are gated by <code><a href="reference/check_mcmc_gate.html">check_mcmc_gate()</a></code> (Rhat &lt; 1.01, ESS, no divergences) before any metric is reported; <code><a href="reference/prior_sensitivity.html">prior_sensitivity()</a></code> refits under several log-hazard-ratio prior scales to check robustness.</p>
+<p>MCMC fits are gated by <code><a href="reference/check_mcmc_gate.html">check_mcmc_gate()</a></code> before any metric is reported. The gate checks split-Rhat, effective sample size, and divergent transitions. <code><a href="reference/prior_sensitivity.html">prior_sensitivity()</a></code> refits under several log-hazard-ratio prior scales to check robustness.</p>
 </div>
 <div class="section level2">
 <h2 id="documentation">Documentation<a class="anchor" aria-label="anchor" href="#documentation"></a>
 </h2>
-<p><code><a href="reference/propagate_metric.html">?propagate_metric</a></code> is the entry point for writing a new metric; every <code>metric_*()</code> function follows the same <code>function(draw, w)</code> signature. <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> also audits non-finite posterior draws and flags metrics with more than 5% non-finite values. Metrics can be passed to it directly. See the function reference (<code><a href="https://rdrr.io/pkg/bayesval/man" class="external-link">help(package = "bayesval")</a></code>) for the full API.</p>
+<p>The pkgdown site is the main reference:</p>
+<ul>
+<li>package site: <a href="https://wmotte.github.io/bayesval/" class="uri">https://wmotte.github.io/bayesval/</a>
+</li>
+<li>function index: <a href="https://wmotte.github.io/bayesval/reference/" class="uri">https://wmotte.github.io/bayesval/reference/</a>
+</li>
+<li>local entry point for writing a new metric: <code><a href="reference/propagate_metric.html">?propagate_metric</a></code>
+</li>
+<li>full package help: <code><a href="https://rdrr.io/pkg/bayesval/man" class="external-link">help(package = "bayesval")</a></code>
+</li>
+</ul>
+<p>Posterior metric objects have <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> methods that report the median, credible interval, finite-draw counts, and an unreliability flag when more than 5% of draws are non-finite.</p>
+<p>Worked examples live in <code>vignettes/</code>. Heavier Stan articles are pre-rendered outside the normal pkgdown build; see <code>articles/README.md</code> for that workflow.</p>
+</div>
+<div class="section level2">
+<h2 id="development-checks">Development checks<a class="anchor" aria-label="anchor" href="#development-checks"></a>
+</h2>
+<p>For a lightweight local check without rebuilding vignettes:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="ex">R</span> CMD build <span class="at">--no-build-vignettes</span> <span class="at">--no-manual</span> .</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="va">_R_CHECK_FORCE_SUGGESTS_</span><span class="op">=</span>false <span class="ex">R</span> CMD check <span class="at">--no-manual</span> <span class="at">--ignore-vignettes</span> <span class="dt">\</span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  bayesval_0.1.0.tar.gz</span></code></pre></div>
+<p><code>_R_CHECK_FORCE_SUGGESTS_=false</code> is useful on machines without the heavier Suggested packages. A complete CRAN-style check should install all Suggested packages first.</p>
 </div>
 <div class="section level2">
 <h2 id="citation-and-reproducibility">Citation and reproducibility<a class="anchor" aria-label="anchor" href="#citation-and-reproducibility"></a>
@@ -158,7 +194,7 @@
 <div class="section level2">
 <h2 id="license">License<a class="anchor" aria-label="anchor" href="#license"></a>
 </h2>
-<p>MIT © Willem M. Otte</p>
+<p>GPL-3. The full license text is in <a href="LICENSE.html">LICENSE.md</a>.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">
@@ -173,7 +209,7 @@
 <h2 data-toc-skip>License</h2>
 <ul class="list-unstyled">
 <li><a href="LICENSE.html">Full license</a></li>
-<li><small><a href="https://opensource.org/licenses/mit-license.php" class="external-link">MIT</a> + file <a href="LICENSE-text.html">LICENSE</a></small></li>
+<li><small><a href="https://www.r-project.org/Licenses/GPL-3" class="external-link">GPL-3</a></small></li>
 </ul>
 </div>
 

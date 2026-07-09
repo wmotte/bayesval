@@ -16,7 +16,7 @@ Description: Turns standard performance assessment of Cox proportional-hazards
     draw) propagates model-parameter uncertainty; the Bayesian
     bootstrap adds evaluation-sample uncertainty; calibration is assessed by a
     posterior predictive check.
-License: MIT + file LICENSE
+License: GPL-3
 URL: https://github.com/wmotte/bayesval, https://wmotte.github.io/bayesval/
 BugReports: https://github.com/wmotte/bayesval/issues
 Encoding: UTF-8
