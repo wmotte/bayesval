@@ -1,6 +1,6 @@
 # bayes_bootstrap.R
 # ---------------------------------------------------------------------------
-# B3 — the second variance source. The parameter posterior alone under-
+# B3---the second variance source. The parameter posterior alone under-
 # propagates uncertainty about the EVALUATION sample. Rubin's (1981) Bayesian
 # bootstrap attaches a Dirichlet(1,...,1) weight vector g^(s) over the n
 # evaluation subjects at each draw; the weighted metric M(S^(s), data; g^(s))

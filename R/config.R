@@ -6,7 +6,7 @@
 # example, the simulation, and the tests share one set of defaults.
 #
 # Access the singleton with bc_config(); override per call by passing named
-# fields, e.g. bc_config(S = 1000L). Nothing here fits or predicts — it only
+# fields, e.g. bc_config(S = 1000L). Nothing here fits or predicts---it only
 # holds settings.
 # ---------------------------------------------------------------------------
 

@@ -1,6 +1,6 @@
 # decision_curve.R
 # ---------------------------------------------------------------------------
-# B6 — the decision-analytic layer. Net benefit at threshold p_t (Vickers &
+# B6---the decision-analytic layer. Net benefit at threshold p_t (Vickers &
 # Elkin), survival version: among subjects flagged positive (pi_i(t) >= p_t) the
 # event rate is estimated by 1 - KM within that group at t.
 #   NB(p_t) = f * r - f * (1 - r) * p_t / (1 - p_t)

@@ -1,6 +1,6 @@
 # propagate.R
 # ---------------------------------------------------------------------------
-# B2 — the single estimation principle of the framework.
+# B2---the single estimation principle of the framework.
 #
 # Any performance estimator M (Harrell C, Uno C, ICI, IBS, net benefit, ...) is
 # a functional M(S^(s), data ; g^(s)) of the predicted-survival object and the
@@ -8,7 +8,7 @@
 # collection {M^(s)} is the posterior distribution induced for that finite-sample
 # estimator. No new point estimators are invented.
 #
-# B3 — two variance sources. Passing weights = "bootstrap" attaches a fresh
+# B3---two variance sources. Passing weights = "bootstrap" attaches a fresh
 # Dirichlet(1,...,1) weight vector g^(s) over the n evaluation subjects at each
 # draw (Rubin's Bayesian bootstrap). The resulting posterior propagates BOTH
 # model-parameter uncertainty (the draws) and finite evaluation-sample
@@ -91,7 +91,7 @@ propagate_metric <- function(ps, metric_fn,
 }
 
 #' Convenience: propagate several named metric functions in one pass over the
-#' draws (cheaper than one pass each — the survival object is only sliced once).
+#' draws (cheaper than one pass each---the survival object is only sliced once).
 #'
 #' @param ps          a `psurv`.
 #' @param metric_fns  named list of function(draw, w) -> scalar/named-vector.
@@ -108,7 +108,7 @@ propagate_many <- function(ps, metric_fns,
 }
 
 # ---------------------------------------------------------------------------
-# Summaries (median + credible interval) — B2 reporting object.
+# Summaries (median + credible interval)---B2 reporting object.
 # ---------------------------------------------------------------------------
 
 #' @export
@@ -118,7 +118,7 @@ summary.posterior_metric <- function(object, probs = c(0.025, 0.5, 0.975),
   if (is.null(dim(m))) m <- matrix(m, ncol = 1L)
   nm <- colnames(m) %||% paste0("V", seq_len(ncol(m)))
   med_i <- which.min(abs(probs - 0.5))
-  # One tidy row per metric column (K is small — this is not a hot per-draw loop).
+  # One tidy row per metric column (K is small---this is not a hot per-draw loop).
   res <- purrr::map_dfr(seq_len(ncol(m)), function(j) {
     col <- m[, j]
     finite <- is.finite(col)

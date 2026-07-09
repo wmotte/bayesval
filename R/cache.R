@@ -1,7 +1,7 @@
 # cache.R
 # ---------------------------------------------------------------------------
 # Optional disk caching of the (expensive) posterior survival array. The `psurv`
-# object is the costly artefact — an MCMC fit plus an [S x n x H] array — and is
+# object is the costly artefact---an MCMC fit plus an [S x n x H] array---and is
 # consumed unchanged by every metric (B2-B6). Caching it keyed on the inputs lets
 # the worked example, the simulation, and interactive work skip re-fitting.
 #

@@ -69,7 +69,7 @@ reference:
   - clear_psurv_cache
 
 - title: Uncertainty propagation
-  desc: The one idea — propagate any frequentist estimator across the posterior
+  desc: The one idea---propagate any frequentist estimator across the posterior
   contents:
   - propagate_metric
   - propagate_many

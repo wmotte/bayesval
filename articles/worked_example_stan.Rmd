@@ -14,9 +14,9 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
 `vignette("worked_example")` runs the Rotterdam → GBSG validation on the
 `coxph`-Laplace backend so it reproduces with only the `survival` package.
 Because CRAN `rstanarm` ships no `stan_surv`, this article instead fits the
-package's **primary full-Bayes** model — the `rstan` piecewise-exponential PH
-model (`backend = "stan_pwexp"`) — on the same cohort pair and compares the
-genuine MCMC posterior to the Cox-Laplace approximation and the plain
+package's **primary full-Bayes** model---the `rstan` piecewise-exponential PH
+model (`backend = "stan_pwexp"`)---on the same cohort pair and compares the
+full-Bayes MCMC posterior to the Cox-Laplace approximation and the plain
 frequentist estimate.
 
 > This article requires an rstan toolchain to build and is not run by pkgdown
@@ -53,7 +53,7 @@ horizons <- c(2, 5); h5 <- 2L; tau <- 5
 form <- Surv(time, status) ~ age + nodes + grade3 + size + logpgr + hormon + meno
 ```
 
-# Genuine Bayesian fit (MCMC)
+# Full-Bayes fit (MCMC)
 
 ```{r stan}
 t0 <- Sys.time()
@@ -122,9 +122,9 @@ knitr::kable(posterior_vs_frequentist(tab, freq),
 The full-Bayes MCMC posterior reproduces the frequentist point estimates and
 agrees closely with the Cox-Laplace approximation reported in
 `vignette("worked_example")`, with credible intervals that carry the genuine
-posterior — not its large-sample Laplace stand-in.
+posterior---not its large-sample Laplace stand-in.
 
-# PPC and decision curve (genuine-Bayes)
+# PPC and decision curve (full-Bayes)
 
 GBSG calibration at 5 years under the full-Bayes piecewise-exponential model:
 

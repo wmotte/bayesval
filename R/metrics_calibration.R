@@ -75,7 +75,7 @@ metric_ici <- function(draw, w = NULL, horizon = NULL,
     E90 = .wquantile(ad, ww, 0.90))
 }
 
-#' D-calibration (per draw) — A2.6, Haider et al. (JMLR 2020). Distributional
+#' D-calibration (per draw)---A2.6, Haider et al. (JMLR 2020). Distributional
 #' calibration of the WHOLE predicted survival distribution, not one horizon: if
 #' the model is calibrated, u_i = S_i(T_i) is Uniform(0,1). Bin `[0,1]` into
 #' `bins` equal cells; an event contributes 1 to its cell, a censored subject
@@ -159,7 +159,7 @@ metric_dcalibration <- function(draw, w = NULL, bins = 10L) {
   cll <- log(-log(1 - pr))                 # complementary log-log of risk
   # polspline::hare() prints "Convergence problems.... stopping addition" on
   # stdout when stepwise basis addition stops early. The returned fit is still
-  # usable, so this is chatter and not a failure; a genuine failure throws and is
+  # usable, so this is chatter and not a failure; a true failure throws and is
   # caught by the caller, which falls back to grouped Kaplan-Meier. Capture the
   # output so per-draw propagation (S calls per cohort) does not flood the log.
   invisible(utils::capture.output(

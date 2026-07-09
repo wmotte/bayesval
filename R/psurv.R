@@ -67,7 +67,7 @@ psurv_draw <- function(ps, s) {
 }
 
 # ---------------------------------------------------------------------------
-# Constructors (B1) — turn a fitted model into a psurv object.
+# Constructors (B1)---turn a fitted model into a psurv object.
 # ---------------------------------------------------------------------------
 
 #' Build a psurv from an rstanarm::stan_surv fit (the primary Bayesian PH model).
@@ -145,7 +145,7 @@ psurv_from_stan_surv <- function(fit, newdata, time, status, horizons,
 #' model under flat priors: coefficients are drawn from N(beta_hat, vcov_hat)
 #' and combined with the Breslow baseline cumulative hazard. It lets the entire
 #' Part B pipeline (B2-B6) run and be unit-tested with only the `survival`
-#' package installed — no Stan toolchain required. The primary manuscript path
+#' package installed---no Stan toolchain required. The primary manuscript path
 #' remains psurv_from_stan_surv(); this documents the model-agnostic claim.
 #'
 #' @param formula a survival::coxph formula, e.g. Surv(time, status) ~ x1 + x2.
@@ -203,12 +203,12 @@ psurv_from_coxph <- function(formula, data, horizons, S = 500L,
 
 #' Piecewise-exponential (Poisson-trick) Bayesian PH model -> psurv.
 #'
-#' A genuine Bayesian proportional-hazards analogue with a piecewise-constant
+#' A full-Bayes proportional-hazards analogue with a piecewise-constant
 #' baseline hazard, fit WITHOUT Stan: split the follow-up at cut points into
 #' person-time pieces, fit a Poisson GLM with piece-specific intercepts (the log
 #' baseline hazards) and covariate log-HRs, and draw the posterior from the
 #' GLM's Laplace approximation N(coef, vcov). This is the plan's robustness
-#' comparator (B1) and shows the framework is model-agnostic — it produces the
+#' comparator (B1) and shows the framework is model-agnostic---it produces the
 #' identical `psurv` object as stan_surv or the Cox-Laplace fallback, so B2-B6
 #' are unchanged. Needs only the `survival` package.
 #'

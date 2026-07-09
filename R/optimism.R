@@ -1,6 +1,6 @@
 # optimism.R
 # ---------------------------------------------------------------------------
-# B5 — optimism / overfitting correction, the Bayesian way.
+# B5---optimism / overfitting correction, the Bayesian way.
 #
 #  * loo_survival(): PSIS-LOO elpd from a pointwise survival log-likelihood
 #    matrix (e.g. rstanarm::log_lik(stan_surv_fit)) as an out-of-sample score.

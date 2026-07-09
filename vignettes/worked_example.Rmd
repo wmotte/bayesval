@@ -94,7 +94,7 @@ knitr::kable(dplyr::select(tab, metric, summary), caption =
 ```
 
 Discrimination is moderate (Harrell C ≈ 0.66, Uno C ≈ 0.65). The **calibration
-slope < 1** and **ICI ≈ 0.09** flag real external miscalibration — the model's
+slope < 1** and **ICI ≈ 0.09** flag real external miscalibration---the model's
 risks need recalibration for this cohort, a conclusion discrimination alone
 cannot give.
 
@@ -142,7 +142,7 @@ knitr::kable(posterior_vs_frequentist(tab, freq),
 
 The Bayesian posterior medians reproduce the frequentist point estimates (they
 use the same estimators), while the credible intervals additionally propagate
-model-parameter uncertainty — the coherent, probabilistic replacement for the
+model-parameter uncertainty---the coherent, probabilistic replacement for the
 usual bootstrap CI.
 
 > The primary full-Bayes MCMC path (`backend = "stan_pwexp"`) and internal

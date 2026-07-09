@@ -1,7 +1,7 @@
 # plot_theme.R
 # ---------------------------------------------------------------------------
 # Shared figure style for the whole framework (see FIGURE_STYLE.md). Every
-# rendered figure — R/ plot helpers, vignettes, simulation — uses ggplot2 with
+# rendered figure---R/ plot helpers, vignettes, simulation---uses ggplot2 with
 # this theme and the Okabe-Ito colourblind-safe palette, so the manuscript's
 # figures read as one visual family. No base-R graphics anywhere.
 # ---------------------------------------------------------------------------
@@ -36,7 +36,7 @@ number_ticks <- function(n) function(limits) pretty(limits, n)
 #' "Generic RGB" ICC profile into the PNG *and* converts the pixel values into
 #' it. LaTeX ignores the embedded profile and renders the raw values, so an
 #' Okabe-Ito orange (`#E69F00`) prints as `#DE8E08` and the blue (`#0072B2`) as
-#' `#0B5DA2` — darker, hue-shifted, and with the palette's contrast flattened.
+#' `#0B5DA2`---darker, hue-shifted, and with the palette's contrast flattened.
 #' Pin an sRGB device so the written pixels are the colours we asked for.
 #'
 #' @param filename output path.

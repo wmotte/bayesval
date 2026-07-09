@@ -1,6 +1,6 @@
 # fit_stan_pwexp.R
 # ---------------------------------------------------------------------------
-# B1 (primary, genuine full-Bayes). A piecewise-exponential proportional-hazards
+# B1 (primary, full-Bayes). A piecewise-exponential proportional-hazards
 # survival model fitted by MCMC with rstan (stan/pwexp_ph.stan). Because the CRAN
 # release of rstanarm does NOT ship stan_surv (it lives only on an unmerged
 # GitHub branch), this hand-written model is the framework's real Bayesian PH
@@ -109,7 +109,7 @@ fit_stan_pwexp <- function(formula, data, horizons, n_pieces = 8L,
   # fresh permutation on every call, so two separate permuted=TRUE calls return
   # MISALIGNED draws (beta row s and log_h0 row s would be different posterior
   # draws). One call shares the permutation, keeping (beta, log_h0) aligned per
-  # draw — essential because the centering shift and the survival array pair them.
+  # draw---essential because the centering shift and the survival array pair them.
   .ext <- rstan::extract(fit, pars = c("beta", "log_h0"), permuted = TRUE)
   beta   <- as.matrix(.ext$beta)
   log_h0 <- as.matrix(.ext$log_h0)

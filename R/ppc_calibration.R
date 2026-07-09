@@ -1,6 +1,6 @@
 # ppc_calibration.R
 # ---------------------------------------------------------------------------
-# B4 — calibration as a posterior predictive check (model criticism), not only
+# B4---calibration as a posterior predictive check (model criticism), not only
 # as a summarised number.
 #
 # For each posterior draw s: simulate a replicate outcome y_rep^(s) from the

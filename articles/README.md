@@ -1,7 +1,7 @@
 # Pre-rendered articles
 
 Content here is **not** built by `pkgdown::build_site()` and **not** shipped as
-a package vignette — it needs an rstan toolchain and several minutes of MCMC,
+a package vignette---it needs an rstan toolchain and several minutes of MCMC,
 which is too heavy to run on every site rebuild.
 
 ## Workflow

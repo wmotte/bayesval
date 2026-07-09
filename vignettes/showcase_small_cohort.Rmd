@@ -23,17 +23,17 @@ This showcase makes three claims and backs each with numbers from a
 self-contained simulation where the truth is known throughout, so every claim
 is checkable against an oracle. It runs on the `coxph`-Laplace backend.
 
-- **Act 1** — in one such cohort the frequentist read-out is ambiguous: every
+- **Act 1**---in one such cohort the frequentist read-out is ambiguous: every
   95% CI is so wide it spans "good" and "broken", so the deploy/reject decision
   is a coin flip. The Bayesian framework returns the decision-relevant
-  quantities directly — P(discrimination adequate), P(calibration acceptable),
-  P(net clinical benefit > 0), P(net harm) — and a single **joint** deployment-gate
+  quantities directly---P(discrimination adequate), P(calibration acceptable),
+  P(net clinical benefit > 0), P(net harm)---and a single **joint** deployment-gate
   probability.
-- **Act 2** — that joint gate is genuinely not recoverable from separate
+- **Act 2**---that joint gate cannot be recovered from separate
   frequentist intervals: the metrics are correlated across the posterior, so the
   honest joint probability differs materially from the naive product of
   marginals.
-- **Act 3** — the Bayesian deployment probability is itself **checkable**: pooled
+- **Act 3**---the Bayesian deployment probability is itself **checkable**: pooled
   over many simulated cohorts with known ground truth, a higher gate probability
   reliably means a more deploy-worthy cohort, and the gate errs on the
   conservative side. A dichotomous frequentist rule offers no such graded,
@@ -173,7 +173,7 @@ The dichotomous rule below (all three 95% intervals clear their bars) is a
 deliberately conservative reporting-practice reference. A stronger, fairer
 comparator resamples the evaluation cohort once per replicate and recomputes
 every gate-critical metric on that same replicate, so a frequentist analyst
-can also express the joint deployment event as a bootstrap frequency — the
+can also express the joint deployment event as a bootstrap frequency---the
 direct classical analogue of the Bayesian gate probability. It preserves the
 dependence across metrics that separate marginal intervals discard.
 `with_preserved_rng()` shields the global stream so this additive comparator
@@ -247,10 +247,10 @@ gate_auc_ci <- function(df, col, B = 2000L, seed = 12L) {
 }
 ```
 
-# Act 1 — one small local cohort: frequentist ambiguity vs Bayesian answer
+# Act 1---one small local cohort: frequentist ambiguity vs Bayesian answer
 
 Local truth: same signal, but a heavier baseline hazard than the development
-population (a sicker clinic) — the published model is mildly mis-calibrated
+population (a sicker clinic)---the published model is mildly mis-calibrated
 here, which is realistic external validation, not a broken model.
 
 ```{r act1-cohort}
@@ -359,7 +359,7 @@ cat(sprintf("[oracle] C=%.2f slope=%.2f dNB=%+.3f => %s\n", orc1$C, orc1$slope,
 The joint gate reaches the correct low-probability conclusion where every
 frequentist interval was individually undecided.
 
-# Act 2 — the joint gate is not recoverable from separate intervals
+# Act 2---the joint gate is not recoverable from separate intervals
 
 ```{r act2}
 P_gate_indep <- P_disc * P_cal * P_bene
@@ -375,7 +375,7 @@ cat(sprintf("posterior corr(slope, dNB) = %+.2f ; corr(C, slope) = %+.2f\n",
 ```
 
 The metrics move together across the posterior; a set of separate frequentist
-intervals throws this dependence away. A paired bootstrap that recomputes
+intervals discards this dependence. A paired bootstrap that recomputes
 every metric on the same replicate does preserve this dependence and yields a
 comparable joint frequency; the Bayesian gate adds model-parameter uncertainty
 and a coherent posterior read-out.
@@ -406,7 +406,7 @@ ggplot2::ggplot(joint_df, ggplot2::aes(cal_slope, C_harrell, fill = gate)) +
   theme_bayesval()
 ```
 
-# Act 3 — the deployment probability is checked against known truth
+# Act 3---the deployment probability is checked against known truth
 
 Configurations spanning truly-worthy to truly-unworthy local cohorts, with a
 demo-scale sweep (kept small so this vignette builds quickly).
@@ -506,7 +506,7 @@ Both graded gates rank cohorts by worthiness; the dichotomous rule gives an
 over/under-confident yes/no only at this sample size. Both are also
 *conservative*: the mean stated probability sits below the base rate of truly
 worthy cohorts. That is expected, and it is why the 45-degree line is not the
-reference — the truth here comes from six hand-picked configurations in a fixed
+reference---the truth here comes from six hand-picked configurations in a fixed
 50/50 split, which is not the model's prior, and posterior probabilities are
 calibrated only when averaged over the prior that generated the truth.
 
@@ -539,7 +539,7 @@ ggplot2::ggplot(rel_both, ggplot2::aes(mid, emp, colour = method)) +
   theme_bayesval()
 ```
 
-The Bayesian deployment probability ranks cohorts by true worthiness — a graded,
+The Bayesian deployment probability ranks cohorts by true worthiness---a graded,
 checkable confidence a dichotomous frequentist rule cannot offer. The
 paired-bootstrap gate is overlaid as the fair frequentist comparator.
 

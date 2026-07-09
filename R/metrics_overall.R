@@ -56,7 +56,7 @@ metric_ipa <- function(draw, w = NULL, Ghat = NULL) {
   out
 }
 
-#' Royston-Sauerbrei R^2_D (per draw) — explained variation from the ordered
+#' Royston-Sauerbrei R^2_D (per draw)---explained variation from the ordered
 #' linear predictor. D is the Cox coefficient on scaled normal rankit scores.
 #'   R^2_D = (D^2/kappa^2) / (pi^2/6 + D^2/kappa^2),  kappa = sqrt(8/pi).
 #' @param draw a `psurv_draw()` list for a single posterior draw.

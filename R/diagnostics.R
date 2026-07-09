@@ -89,7 +89,7 @@ check_mcmc_gate <- function(fit, max_rhat = 1.01, min_ess = 400,
 #' across weakly-informative priors; a large shift flags prior-dependence.
 #'
 #' Uses `beta_scale` (the Normal(0, beta_scale) SD on the log-hazard-ratios) as
-#' the prior knob — the working analogue of stan_surv's coefficient prior, since
+#' the prior knob---the working analogue of stan_surv's coefficient prior, since
 #' CRAN rstanarm ships no stan_surv.
 #'
 #' @param formula,data,horizons as in fit_stan_pwexp.

@@ -45,7 +45,7 @@ metric_uno_c <- function(draw, w = NULL, tau = NULL) {
   c(C_uno = unname(cc$concordance))
 }
 
-#' Gonen-Heller K (per draw) — model-based concordance from eta only, so it is
+#' Gonen-Heller K (per draw)---model-based concordance from eta only, so it is
 #' independent of the study censoring distribution. Closed form (A1):
 #'   `K = sum_{i!=j} w_i w_j I(eta_i > eta_j) / (1 + exp(eta_j - eta_i))`
 #' normalised by the pair weight mass. O(n^2); intended for moderate n.
@@ -74,7 +74,7 @@ metric_gonen_k <- function(draw, w = NULL, max_n = 3000L) {
   c(K_gonen = unname(2 * num / den))
 }
 
-#' Antolini's time-dependent concordance (per draw) — A1.4. Uses the model's
+#' Antolini's time-dependent concordance (per draw)---A1.4. Uses the model's
 #' time-specific survival: a usable pair (i event at Ytilde_i, j later) is
 #' concordant when S_i(Ytilde_i) < S_j(Ytilde_i), i.e. the subject who failed
 #' had the lower predicted survival AT THAT TIME. For a PH model this reduces to
@@ -85,7 +85,7 @@ metric_gonen_k <- function(draw, w = NULL, max_n = 3000L) {
 #' @param draw a `psurv_draw()` list for a single posterior draw.
 #' @param w    length-n case-weight vector (sums to 1); `NULL` uses uniform weights.
 #' @param max_n guard: subsample the pair set above this n (kept tractable in
-#'              the posterior loop; noted, not silent — see the returned NA path).
+#'              the posterior loop; noted, not silent---see the returned NA path).
 #' @return c(C_antolini = value)
 #' @export
 metric_antolini_c <- function(draw, w = NULL, max_n = 2000L) {

@@ -17,7 +17,7 @@ approximation in the small, sparse-event, high-censoring settings where the
 framework is most needed. This article fits **both** backends on one small,
 high-censoring training cohort (n = 150, ~60% censored, moderate signal) and
 validates both on an independent small cohort of the same size, so any
-divergence between the genuine posterior and its large-sample approximation
+divergence between the true posterior and its large-sample approximation
 shows up directly in the propagated metrics, and MCMC pathologies (divergences,
 poor mixing) that a large well-identified fit would not reveal have a chance to
 appear.
@@ -77,7 +77,7 @@ ps_cox  <- psurv_external(fit_cox, val, time = "time", status = "status",
                           horizons = horizons, S = 1000L, seed = 1L)
 ```
 
-# Genuine full-Bayes MCMC (fewer pieces: sparse events)
+# Full-Bayes MCMC (fewer pieces: sparse events)
 
 ```{r stan}
 t0 <- Sys.time()
@@ -120,7 +120,7 @@ cat(sprintf("MCMC diagnostics on the small cohort: max Rhat %.3f, min ESS %.0f, 
 The full-Bayes MCMC posterior and the Cox-Laplace approximation agree closely
 on discrimination, calibration slope, and IBS even at this small, sparse-event,
 high-censoring sample size, and the MCMC diagnostics show no divergences or
-mixing problems — the fast Laplace approximation is a reasonable stand-in for
+mixing problems---the fast Laplace approximation is a reasonable stand-in for
 this framework's headline metrics, with the caveat that this is one cohort
 pair, not a systematic sweep (see the Part C coverage study in the source
 repository for that).

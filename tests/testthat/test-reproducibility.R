@@ -1,5 +1,5 @@
 # Reproducibility (checklist 8): with fixed seeds the whole pipeline must be
-# deterministic. These are regression snapshots — if a change moves a posterior
+# deterministic. These are regression snapshots---if a change moves a posterior
 # median, the test fails and the change must be justified (and the snapshot
 # updated deliberately).
 library(testthat)
