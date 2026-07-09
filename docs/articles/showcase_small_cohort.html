@@ -94,9 +94,11 @@ correlated across the posterior, so the honest joint probability differs
 materially from the naive product of marginals.</li>
 <li>
 <strong>Act 3</strong> — the Bayesian deployment probability is
-itself <strong>calibrated</strong>: pooled over many simulated cohorts
-with known ground truth, when the gate says “deploy-worthy with
-probability p”, about a fraction p really are.</li>
+itself <strong>checkable</strong>: pooled over many simulated cohorts
+with known ground truth, a higher gate probability reliably means a more
+deploy-worthy cohort, and the gate errs on the conservative side. A
+dichotomous frequentist rule offers no such graded, checkable
+confidence.</li>
 </ul>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/message.html" class="external-link">suppressMessages</a></span><span class="op">(</span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/therneau/survival" class="external-link">survival</a></span><span class="op">)</span><span class="op">)</span></span>
@@ -207,7 +209,17 @@ clinical value, net benefit at threshold 0.2 beats treat-all/none.</p>
 <span>  slope   <span class="op">=</span> <span class="va">metric_cal_slope</span>,</span>
 <span>  ici     <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span><span class="op">)</span> <span class="fu"><a href="../reference/metric_ici.html">metric_ici</a></span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span>, horizon <span class="op">=</span> <span class="va">H5</span>, method <span class="op">=</span> <span class="st">"auto"</span><span class="op">)</span><span class="op">[</span><span class="st">"ICI"</span><span class="op">]</span>,</span>
 <span>  ibs     <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span><span class="op">)</span> <span class="fu"><a href="../reference/metric_brier.html">metric_brier</a></span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span><span class="op">)</span><span class="op">[</span><span class="st">"IBS"</span><span class="op">]</span>,</span>
-<span>  nb      <span class="op">=</span> <span class="fu">metric_dnb</span><span class="op">(</span><span class="va">PT</span>, <span class="va">H5</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<span>  nb      <span class="op">=</span> <span class="fu">metric_dnb</span><span class="op">(</span><span class="va">PT</span>, <span class="va">H5</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># The deployment gate reads only three of these. Act 3 propagates many cohorts x</span></span>
+<span><span class="co"># S draws, so evaluating the full suite there would fit a `polspline::hare`</span></span>
+<span><span class="co"># calibration smoother once per draw for an ICI that the gate never consults.</span></span>
+<span><span class="co"># Metric evaluation draws no random numbers (the Dirichlet weights are drawn</span></span>
+<span><span class="co"># before the metric call in propagate_metric), so the gate probability is</span></span>
+<span><span class="co"># bit-identical to the one the full suite would produce.</span></span>
+<span><span class="va">gate_suite</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>harrell <span class="op">=</span> <span class="va">metric_harrell_c</span>,</span>
+<span>                   slope   <span class="op">=</span> <span class="va">metric_cal_slope</span>,</span>
+<span>                   nb      <span class="op">=</span> <span class="fu">metric_dnb</span><span class="op">(</span><span class="va">PT</span>, <span class="va">H5</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="a-fair-frequentist-comparator-the-paired-bootstrap-joint-gate">A fair frequentist comparator: the paired bootstrap joint gate<a class="anchor" aria-label="anchor" href="#a-fair-frequentist-comparator-the-paired-bootstrap-joint-gate"></a>
 </h3>
@@ -250,14 +262,42 @@ reproducible draws of the rest of the vignette.</p>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">pass</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span>  <span class="op">}</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="co"># Wilson score interval for a binomial proportion (uncertainty band on each</span></span>
-<span><span class="co"># reliability-bin empirical fraction).</span></span>
-<span><span class="va">wilson_ci</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">k</span>, <span class="va">n</span>, <span class="va">z</span> <span class="op">=</span> <span class="fl">1.96</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="kw">if</span> <span class="op">(</span><span class="va">n</span> <span class="op">==</span> <span class="fl">0</span><span class="op">)</span> <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>lo <span class="op">=</span> <span class="cn">NA_real_</span>, hi <span class="op">=</span> <span class="cn">NA_real_</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="va">p</span> <span class="op">&lt;-</span> <span class="va">k</span> <span class="op">/</span> <span class="va">n</span>; <span class="va">d</span> <span class="op">&lt;-</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">z</span><span class="op">^</span><span class="fl">2</span> <span class="op">/</span> <span class="va">n</span></span>
-<span>  <span class="va">ctr</span> <span class="op">&lt;-</span> <span class="op">(</span><span class="va">p</span> <span class="op">+</span> <span class="va">z</span><span class="op">^</span><span class="fl">2</span> <span class="op">/</span> <span class="op">(</span><span class="fl">2</span> <span class="op">*</span> <span class="va">n</span><span class="op">)</span><span class="op">)</span> <span class="op">/</span> <span class="va">d</span></span>
-<span>  <span class="va">hw</span>  <span class="op">&lt;-</span> <span class="va">z</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="va">p</span> <span class="op">*</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">p</span><span class="op">)</span> <span class="op">/</span> <span class="va">n</span> <span class="op">+</span> <span class="va">z</span><span class="op">^</span><span class="fl">2</span> <span class="op">/</span> <span class="op">(</span><span class="fl">4</span> <span class="op">*</span> <span class="va">n</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span><span class="op">)</span> <span class="op">/</span> <span class="va">d</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>lo <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fl">0</span>, <span class="va">ctr</span> <span class="op">-</span> <span class="va">hw</span><span class="op">)</span>, hi <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="fl">1</span>, <span class="va">ctr</span> <span class="op">+</span> <span class="va">hw</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co"># Uncertainty band on each bin's empirical worthy fraction.</span></span>
+<span><span class="co">#</span></span>
+<span><span class="co"># A Wilson (binomial) interval would be wrong here. `worthy` is a deterministic</span></span>
+<span><span class="co"># function of the data-generating configuration, so within a bin it is not a</span></span>
+<span><span class="co"># Bernoulli draw; the only randomness is WHICH cohorts land in the bin. The bin</span></span>
+<span><span class="co"># fraction is therefore a ratio estimator whose numerator and denominator are</span></span>
+<span><span class="co"># both random and dependent. We resample cohorts (the independent unit) and</span></span>
+<span><span class="co"># recompute the fraction inside fixed bin edges, which respects that structure.</span></span>
+<span><span class="va">boot_bin_ci</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">df</span>, <span class="va">col</span>, <span class="va">breaks</span>, <span class="va">B</span> <span class="op">=</span> <span class="fl">2000L</span>, <span class="va">seed</span> <span class="op">=</span> <span class="fl">11L</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="va">seed</span><span class="op">)</span></span>
+<span>  <span class="va">lev</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/levels.html" class="external-link">levels</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/cut.html" class="external-link">cut</a></span><span class="op">(</span><span class="va">df</span><span class="op">[[</span><span class="va">col</span><span class="op">]</span><span class="op">]</span>, <span class="va">breaks</span>, include.lowest <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="va">reps</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">replicate</a></span><span class="op">(</span><span class="va">B</span>, <span class="op">{</span></span>
+<span>    <span class="va">s</span> <span class="op">&lt;-</span> <span class="va">df</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample.int</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span>, replace <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="op">]</span></span>
+<span>    <span class="va">b</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/cut.html" class="external-link">cut</a></span><span class="op">(</span><span class="va">s</span><span class="op">[[</span><span class="va">col</span><span class="op">]</span><span class="op">]</span>, <span class="va">breaks</span>, include.lowest <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tapply.html" class="external-link">tapply</a></span><span class="op">(</span><span class="va">s</span><span class="op">$</span><span class="va">worthy</span>, <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="va">b</span>, levels <span class="op">=</span> <span class="va">lev</span><span class="op">)</span>, <span class="va">mean</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="op">}</span><span class="op">)</span></span>
+<span>  <span class="fu">tibble</span><span class="fu">::</span><span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html" class="external-link">tibble</a></span><span class="op">(</span></span>
+<span>    emp_lo <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="va">reps</span>, <span class="fl">1</span>, <span class="fu">stats</span><span class="fu">::</span><span class="va"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span>, <span class="fl">0.025</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
+<span>    emp_hi <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply</a></span><span class="op">(</span><span class="va">reps</span>, <span class="fl">1</span>, <span class="fu">stats</span><span class="fu">::</span><span class="va"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span>, <span class="fl">0.975</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="co"># Ranking summary: P(a truly worthy cohort is given a higher gate probability</span></span>
+<span><span class="co"># than a truly unworthy one), ties counted as half. This is the quantity the</span></span>
+<span><span class="co"># diagram actually supports; see the note on the diagonal in reliability_of().</span></span>
+<span><span class="va">gate_auc</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">p</span>, <span class="va">worthy</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">pw</span> <span class="op">&lt;-</span> <span class="va">p</span><span class="op">[</span><span class="va">worthy</span><span class="op">]</span>; <span class="va">pu</span> <span class="op">&lt;-</span> <span class="va">p</span><span class="op">[</span><span class="op">!</span><span class="va">worthy</span><span class="op">]</span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">pw</span><span class="op">)</span> <span class="op">||</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">pu</span><span class="op">)</span><span class="op">)</span> <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="cn">NA_real_</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/outer.html" class="external-link">outer</a></span><span class="op">(</span><span class="va">pw</span>, <span class="va">pu</span>, <span class="st">"&gt;"</span><span class="op">)</span> <span class="op">+</span> <span class="fl">0.5</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/outer.html" class="external-link">outer</a></span><span class="op">(</span><span class="va">pw</span>, <span class="va">pu</span>, <span class="st">"=="</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span><span class="va">gate_auc_ci</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">df</span>, <span class="va">col</span>, <span class="va">B</span> <span class="op">=</span> <span class="fl">2000L</span>, <span class="va">seed</span> <span class="op">=</span> <span class="fl">12L</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="va">seed</span><span class="op">)</span></span>
+<span>  <span class="va">v</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">replicate</a></span><span class="op">(</span><span class="va">B</span>, <span class="op">{</span></span>
+<span>    <span class="va">s</span> <span class="op">&lt;-</span> <span class="va">df</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample.int</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span>, replace <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="op">]</span></span>
+<span>    <span class="fu">gate_auc</span><span class="op">(</span><span class="va">s</span><span class="op">[[</span><span class="va">col</span><span class="op">]</span><span class="op">]</span>, <span class="va">s</span><span class="op">$</span><span class="va">worthy</span><span class="op">)</span></span>
+<span>  <span class="op">}</span><span class="op">)</span></span>
+<span>  <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">v</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.025</span>, <span class="fl">0.975</span><span class="op">)</span>, names <span class="op">=</span> <span class="cn">FALSE</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
 </div>
 </div>
@@ -308,16 +348,8 @@ broken model.</p>
 <span>  <span class="op">}</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">est</span>, <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">v</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.025</span>, <span class="fl">0.975</span><span class="op">)</span>, names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="va">fr_ici</span> <span class="op">&lt;-</span> <span class="fu">boot_ci</span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span><span class="op">)</span> <span class="fu"><a href="../reference/metric_ici.html">metric_ici</a></span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span>, horizon <span class="op">=</span> <span class="va">H5</span>, method <span class="op">=</span> <span class="st">"auto"</span><span class="op">)</span><span class="op">[</span><span class="st">"ICI"</span><span class="op">]</span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span></code></pre>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fr_dnb</span> <span class="op">&lt;-</span> <span class="fu">boot_ci</span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span><span class="op">)</span> <span class="fu">metric_dnb</span><span class="op">(</span><span class="va">PT</span>, <span class="va">H5</span><span class="op">)</span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span><span class="op">)</span><span class="op">[</span><span class="st">"dNB"</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="va">fr_ici</span> <span class="op">&lt;-</span> <span class="fu">boot_ci</span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span><span class="op">)</span> <span class="fu"><a href="../reference/metric_ici.html">metric_ici</a></span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span>, horizon <span class="op">=</span> <span class="va">H5</span>, method <span class="op">=</span> <span class="st">"auto"</span><span class="op">)</span><span class="op">[</span><span class="st">"ICI"</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="va">fr_dnb</span> <span class="op">&lt;-</span> <span class="fu">boot_ci</span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span><span class="op">)</span> <span class="fu">metric_dnb</span><span class="op">(</span><span class="va">PT</span>, <span class="va">H5</span><span class="op">)</span><span class="op">(</span><span class="va">d</span>, <span class="va">w</span><span class="op">)</span><span class="op">[</span><span class="st">"dNB"</span><span class="op">]</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">frtab</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>`Harrell C` <span class="op">=</span> <span class="va">fr_C</span>, `Calibration slope` <span class="op">=</span> <span class="va">fr_slope</span>,</span>
 <span>              `ICI (5y)` <span class="op">=</span> <span class="va">fr_ici</span>, `dNB @20% (vs default)` <span class="op">=</span> <span class="va">fr_dnb</span><span class="op">)</span></span>
@@ -359,7 +391,7 @@ default)</td>
 </tr>
 </tbody>
 </table>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">verdict</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">lo</span>, <span class="va">hi</span>, <span class="va">need_lo</span> <span class="op">=</span> <span class="cn">NA</span>, <span class="va">need_hi</span> <span class="op">=</span> <span class="cn">NA</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">ok_lo</span> <span class="op">&lt;-</span> <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">need_lo</span><span class="op">)</span><span class="op">)</span> <span class="cn">TRUE</span> <span class="kw">else</span> <span class="va">lo</span> <span class="op">&gt;=</span> <span class="va">need_lo</span></span>
 <span>  <span class="va">ok_hi</span> <span class="op">&lt;-</span> <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">need_hi</span><span class="op">)</span><span class="op">)</span> <span class="cn">TRUE</span> <span class="kw">else</span> <span class="va">hi</span> <span class="op">&lt;=</span> <span class="va">need_hi</span></span>
@@ -369,11 +401,11 @@ default)</td>
 <span><span class="op">}</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"discrimination C&gt;=%.2f: %s\n"</span>, <span class="va">C_MIN</span>, <span class="fu">verdict</span><span class="op">(</span><span class="va">fr_C</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span>, <span class="va">fr_C</span><span class="op">[</span><span class="fl">3</span><span class="op">]</span>, need_lo <span class="op">=</span> <span class="va">C_MIN</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## discrimination C&gt;=0.65: AMBIGUOUS</span></span></code></pre>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"calibration slope in [%.2f,%.2f]: %s\n"</span>, <span class="va">SLOPE_LO</span>, <span class="va">SLOPE_HI</span>,</span>
 <span>            <span class="fu">verdict</span><span class="op">(</span><span class="va">fr_slope</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span>, <span class="va">fr_slope</span><span class="op">[</span><span class="fl">3</span><span class="op">]</span>, need_lo <span class="op">=</span> <span class="va">SLOPE_LO</span>, need_hi <span class="op">=</span> <span class="va">SLOPE_HI</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## calibration slope in [0.80,1.25]: AMBIGUOUS</span></span></code></pre>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"net benefit dNB&gt;0: %s\n"</span>, <span class="fu">verdict</span><span class="op">(</span><span class="va">fr_dnb</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span>, <span class="va">fr_dnb</span><span class="op">[</span><span class="fl">3</span><span class="op">]</span>, need_lo <span class="op">=</span> <span class="fl">0</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## net benefit dNB&gt;0: AMBIGUOUS</span></span></code></pre>
 <p>The marginal-interval rule does not decide the deployment
@@ -383,7 +415,7 @@ question.</p>
 <h3 id="fair-frequentist-comparator-paired-bootstrap-joint-gate-frequency">Fair frequentist comparator: paired-bootstrap joint-gate
 frequency<a class="anchor" aria-label="anchor" href="#fair-frequentist-comparator-paired-bootstrap-joint-gate-frequency"></a>
 </h3>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">P_gate_boot</span> <span class="op">&lt;-</span> <span class="fu">paired_boot_gate</span><span class="op">(</span><span class="va">local</span><span class="op">$</span><span class="va">time</span>, <span class="va">local</span><span class="op">$</span><span class="va">status</span>, <span class="va">lp</span>, <span class="va">mean_draw</span><span class="op">$</span><span class="va">surv2d</span>,</span>
 <span>                                B <span class="op">=</span> <span class="fl">2000L</span>, seed <span class="op">=</span> <span class="fl">23</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"Paired-bootstrap joint-gate frequency = %.3f\n"</span>, <span class="va">P_gate_boot</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
@@ -395,7 +427,7 @@ below.</p>
 <div class="section level3">
 <h3 id="bayesian-read-out-posteriors-and-deployment-probabilities">Bayesian read-out: posteriors and deployment probabilities<a class="anchor" aria-label="anchor" href="#bayesian-read-out-posteriors-and-deployment-probabilities"></a>
 </h3>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">qi</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">x</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.025</span>, <span class="fl">0.5</span>, <span class="fl">0.975</span><span class="op">)</span>, names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="va">show</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>C_harrell <span class="op">=</span> <span class="st">"Harrell C"</span>, C_uno <span class="op">=</span> <span class="st">"Uno C"</span>, cal_slope <span class="op">=</span> <span class="st">"Calibration slope"</span>,</span>
 <span>          ICI <span class="op">=</span> <span class="st">"ICI (5y)"</span>, IBS <span class="op">=</span> <span class="st">"IBS"</span>, NB_model <span class="op">=</span> <span class="st">"Net benefit @20%"</span>,</span>
@@ -459,7 +491,7 @@ default)</td>
 </tr>
 </tbody>
 </table>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">P_disc</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">Jm</span><span class="op">[</span>, <span class="st">"C_harrell"</span><span class="op">]</span> <span class="op">&gt;=</span> <span class="va">C_MIN</span><span class="op">)</span></span>
 <span><span class="va">P_cal</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">Jm</span><span class="op">[</span>, <span class="st">"cal_slope"</span><span class="op">]</span> <span class="op">&gt;=</span> <span class="va">SLOPE_LO</span> <span class="op">&amp;</span> <span class="va">Jm</span><span class="op">[</span>, <span class="st">"cal_slope"</span><span class="op">]</span> <span class="op">&lt;=</span> <span class="va">SLOPE_HI</span><span class="op">)</span></span>
 <span><span class="va">P_bene</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">Jm</span><span class="op">[</span>, <span class="st">"dNB"</span><span class="op">]</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span></span>
@@ -469,19 +501,19 @@ default)</td>
 <span>               <span class="va">Jm</span><span class="op">[</span>, <span class="st">"dNB"</span><span class="op">]</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"P(discrimination adequate) = %.2f\n"</span>, <span class="va">P_disc</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## P(discrimination adequate) = 0.07</span></span></code></pre>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"P(calibration acceptable)  = %.2f\n"</span>, <span class="va">P_cal</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## P(calibration acceptable)  = 0.18</span></span></code></pre>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"P(net clinical benefit)    = %.2f\n"</span>, <span class="va">P_bene</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## P(net clinical benefit)    = 0.78</span></span></code></pre>
-<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"P(net harm)                = %.2f\n"</span>, <span class="va">P_harm</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## P(net harm)                = 0.22</span></span></code></pre>
-<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"P(JOINT deployment gate)   = %.2f\n"</span>, <span class="va">P_gate</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## P(JOINT deployment gate)   = 0.05</span></span></code></pre>
-<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">orc1</span> <span class="op">&lt;-</span> <span class="fu">oracle_worthy</span><span class="op">(</span><span class="va">DEV_BETA</span>, <span class="va">LOC_RATE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"[oracle] C=%.2f slope=%.2f dNB=%+.3f =&gt; %s\n"</span>, <span class="va">orc1</span><span class="op">$</span><span class="va">C</span>, <span class="va">orc1</span><span class="op">$</span><span class="va">slope</span>,</span>
 <span>            <span class="va">orc1</span><span class="op">$</span><span class="va">dNB</span>, <span class="kw">if</span> <span class="op">(</span><span class="va">orc1</span><span class="op">$</span><span class="va">worthy</span><span class="op">)</span> <span class="st">"truly deploy-worthy"</span> <span class="kw">else</span> <span class="st">"NOT deploy-worthy"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
@@ -494,23 +526,23 @@ every frequentist interval was individually undecided.</p>
 <h2 id="act-2-the-joint-gate-is-not-recoverable-from-separate-intervals">Act 2 — the joint gate is not recoverable from separate
 intervals<a class="anchor" aria-label="anchor" href="#act-2-the-joint-gate-is-not-recoverable-from-separate-intervals"></a>
 </h2>
-<div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">P_gate_indep</span> <span class="op">&lt;-</span> <span class="va">P_disc</span> <span class="op">*</span> <span class="va">P_cal</span> <span class="op">*</span> <span class="va">P_bene</span></span>
 <span><span class="va">rho_cs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/cor.html" class="external-link">cor</a></span><span class="op">(</span><span class="va">Jm</span><span class="op">[</span>, <span class="st">"cal_slope"</span><span class="op">]</span>, <span class="va">Jm</span><span class="op">[</span>, <span class="st">"dNB"</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="va">rho_cc</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/cor.html" class="external-link">cor</a></span><span class="op">(</span><span class="va">Jm</span><span class="op">[</span>, <span class="st">"C_harrell"</span><span class="op">]</span>, <span class="va">Jm</span><span class="op">[</span>, <span class="st">"cal_slope"</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"joint gate, honest (coherent posterior) = %.3f\n"</span>, <span class="va">P_gate</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## joint gate, honest (coherent posterior) = 0.054</span></span></code></pre>
-<div class="sourceCode" id="cb35"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"joint gate, naive product of marginals  = %.3f\n"</span>, <span class="va">P_gate_indep</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## joint gate, naive product of marginals  = 0.010</span></span></code></pre>
-<div class="sourceCode" id="cb37"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb35"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"relative error of the naive shortcut     = %+.0f%%\n"</span>,</span>
 <span>            <span class="fl">100</span> <span class="op">*</span> <span class="op">(</span><span class="va">P_gate_indep</span> <span class="op">-</span> <span class="va">P_gate</span><span class="op">)</span> <span class="op">/</span> <span class="va">P_gate</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## relative error of the naive shortcut     = -82%</span></span></code></pre>
-<div class="sourceCode" id="cb39"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb37"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"joint gate, paired classical bootstrap   = %.3f\n"</span>, <span class="va">P_gate_boot</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## joint gate, paired classical bootstrap   = 0.064</span></span></code></pre>
-<div class="sourceCode" id="cb41"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb39"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"posterior corr(slope, dNB) = %+.2f ; corr(C, slope) = %+.2f\n"</span>,</span>
 <span>            <span class="va">rho_cs</span>, <span class="va">rho_cc</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## posterior corr(slope, dNB) = +0.29 ; corr(C, slope) = +0.90</span></span></code></pre>
@@ -519,14 +551,20 @@ frequentist intervals throws this dependence away. A paired bootstrap
 that recomputes every metric on the same replicate does preserve this
 dependence and yields a comparable joint frequency; the Bayesian gate
 adds model-parameter uncertainty and a coherent posterior read-out.</p>
-<div class="sourceCode" id="cb43"><pre class="downlit sourceCode r">
+<p>The joint posterior of the two gate-critical metrics, with the gate
+bars drawn as dashed lines. The passing draws are the 5% of the
+posterior that clears all three criteria at once.</p>
+<div class="sourceCode" id="cb41"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">gate_lab</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"gate passes (also dNB &gt; 0)"</span>, <span class="st">"gate fails"</span><span class="op">)</span></span>
 <span><span class="va">joint_df</span> <span class="op">&lt;-</span> <span class="fu">tibble</span><span class="fu">::</span><span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html" class="external-link">tibble</a></span><span class="op">(</span></span>
 <span>  cal_slope <span class="op">=</span> <span class="va">Jm</span><span class="op">[</span>, <span class="st">"cal_slope"</span><span class="op">]</span>, C_harrell <span class="op">=</span> <span class="va">Jm</span><span class="op">[</span>, <span class="st">"C_harrell"</span><span class="op">]</span>,</span>
 <span>  gate <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span></span>
 <span>    <span class="va">Jm</span><span class="op">[</span>, <span class="st">"C_harrell"</span><span class="op">]</span> <span class="op">&gt;=</span> <span class="va">C_MIN</span> <span class="op">&amp;</span> <span class="va">Jm</span><span class="op">[</span>, <span class="st">"cal_slope"</span><span class="op">]</span> <span class="op">&gt;=</span> <span class="va">SLOPE_LO</span> <span class="op">&amp;</span></span>
 <span>      <span class="va">Jm</span><span class="op">[</span>, <span class="st">"cal_slope"</span><span class="op">]</span> <span class="op">&lt;=</span> <span class="va">SLOPE_HI</span> <span class="op">&amp;</span> <span class="va">Jm</span><span class="op">[</span>, <span class="st">"dNB"</span><span class="op">]</span> <span class="op">&gt;</span> <span class="fl">0</span>,</span>
-<span>    <span class="va">gate_lab</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>, <span class="va">gate_lab</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span><span class="op">)</span>, levels <span class="op">=</span> <span class="va">gate_lab</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="va">gate_lab</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>, <span class="va">gate_lab</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span><span class="op">)</span>, levels <span class="op">=</span> <span class="va">gate_lab</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="co"># the passing draws are a small minority inside the failing cloud; draw them</span></span>
+<span>  <span class="co"># last so they are not painted over by later failing draws.</span></span>
+<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/arrange.html" class="external-link">arrange</a></span><span class="op">(</span><span class="va">gate</span> <span class="op">==</span> <span class="va">gate_lab</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">joint_df</span>, <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span><span class="va">cal_slope</span>, <span class="va">C_harrell</span>, fill <span class="op">=</span> <span class="va">gate</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_abline.html" class="external-link">geom_vline</a></span><span class="op">(</span>xintercept <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">SLOPE_LO</span>, <span class="va">SLOPE_HI</span><span class="op">)</span>, linetype <span class="op">=</span> <span class="fl">2</span>, colour <span class="op">=</span> <span class="st">"gray40"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_abline.html" class="external-link">geom_hline</a></span><span class="op">(</span>yintercept <span class="op">=</span> <span class="va">C_MIN</span>, linetype <span class="op">=</span> <span class="fl">2</span>, colour <span class="op">=</span> <span class="st">"gray40"</span><span class="op">)</span> <span class="op">+</span></span>
@@ -534,19 +572,18 @@ adds model-parameter uncertainty and a coherent posterior read-out.</p>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_manual.html" class="external-link">scale_fill_manual</a></span><span class="op">(</span>values <span class="op">=</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/setNames.html" class="external-link">setNames</a></span><span class="op">(</span><span class="va">bc_palette</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"blue"</span>, <span class="st">"orange"</span><span class="op">)</span><span class="op">]</span>, <span class="va">gate_lab</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_continuous.html" class="external-link">scale_x_continuous</a></span><span class="op">(</span>breaks <span class="op">=</span> <span class="fu"><a href="../reference/number_ticks.html">number_ticks</a></span><span class="op">(</span><span class="fl">6</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_continuous.html" class="external-link">scale_y_continuous</a></span><span class="op">(</span>breaks <span class="op">=</span> <span class="fu"><a href="../reference/number_ticks.html">number_ticks</a></span><span class="op">(</span><span class="fl">6</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Calibration slope"</span>, y <span class="op">=</span> <span class="st">"Harrell C"</span>, fill <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>                title <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"Joint posterior over the deployment gate  (P(gate) = %.2f)"</span>, <span class="va">P_gate</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Calibration slope"</span>, y <span class="op">=</span> <span class="st">"Harrell C"</span>, fill <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="../reference/theme_bayesval.html">theme_bayesval</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p><img src="showcase_small_cohort_files/figure-html/act2-fig-1.png" class="r-plt" alt="" width="624"></p>
 </div>
 <div class="section level2">
-<h2 id="act-3-the-deployment-probability-is-calibrated-against-known-truth">Act 3 — the deployment probability is calibrated against known
-truth<a class="anchor" aria-label="anchor" href="#act-3-the-deployment-probability-is-calibrated-against-known-truth"></a>
+<h2 id="act-3-the-deployment-probability-is-checked-against-known-truth">Act 3 — the deployment probability is checked against known
+truth<a class="anchor" aria-label="anchor" href="#act-3-the-deployment-probability-is-checked-against-known-truth"></a>
 </h2>
 <p>Configurations spanning truly-worthy to truly-unworthy local cohorts,
 with a demo-scale sweep (kept small so this vignette builds
 quickly).</p>
-<div class="sourceCode" id="cb44"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb42"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">CONFIGS</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>a <span class="op">=</span> <span class="fl">1.10</span>, rate <span class="op">=</span> <span class="fl">0.14</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>a <span class="op">=</span> <span class="fl">1.00</span>, rate <span class="op">=</span> <span class="fl">0.14</span><span class="op">)</span>,</span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>a <span class="op">=</span> <span class="fl">0.88</span>, rate <span class="op">=</span> <span class="fl">0.15</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>a <span class="op">=</span> <span class="fl">0.75</span>, rate <span class="op">=</span> <span class="fl">0.16</span><span class="op">)</span>,</span>
@@ -564,7 +601,7 @@ quickly).</p>
 <span>                       cens_rate <span class="op">=</span> <span class="fl">0.55</span><span class="op">)</span><span class="op">$</span><span class="va">data</span></span>
 <span>    <span class="va">psr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/psurv_external.html">psurv_external</a></span><span class="op">(</span><span class="va">published</span>, <span class="va">dat</span>, time <span class="op">=</span> <span class="st">"time"</span>, status <span class="op">=</span> <span class="st">"status"</span>,</span>
 <span>                          horizons <span class="op">=</span> <span class="va">HZ</span>, S <span class="op">=</span> <span class="fl">300L</span>, seed <span class="op">=</span> <span class="fl">1000L</span> <span class="op">*</span> <span class="va">ci</span> <span class="op">+</span> <span class="va">rep</span><span class="op">)</span></span>
-<span>    <span class="va">Jr</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">unclass</a></span><span class="op">(</span><span class="fu"><a href="../reference/propagate_many.html">propagate_many</a></span><span class="op">(</span><span class="va">psr</span>, <span class="va">suite</span>, weights <span class="op">=</span> <span class="st">"bootstrap"</span>, seed <span class="op">=</span> <span class="va">rep</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="va">Jr</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">unclass</a></span><span class="op">(</span><span class="fu"><a href="../reference/propagate_many.html">propagate_many</a></span><span class="op">(</span><span class="va">psr</span>, <span class="va">gate_suite</span>, weights <span class="op">=</span> <span class="st">"bootstrap"</span>, seed <span class="op">=</span> <span class="va">rep</span><span class="op">)</span><span class="op">)</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">Jr</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">sub</a></span><span class="op">(</span><span class="st">"^[^.]+\\."</span>, <span class="st">""</span>, <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">Jr</span><span class="op">)</span><span class="op">)</span></span>
 <span>    <span class="va">pg</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">Jr</span><span class="op">[</span>, <span class="st">"C_harrell"</span><span class="op">]</span> <span class="op">&gt;=</span> <span class="va">C_MIN</span> <span class="op">&amp;</span></span>
 <span>               <span class="va">Jr</span><span class="op">[</span>, <span class="st">"cal_slope"</span><span class="op">]</span> <span class="op">&gt;=</span> <span class="va">SLOPE_LO</span> <span class="op">&amp;</span> <span class="va">Jr</span><span class="op">[</span>, <span class="st">"cal_slope"</span><span class="op">]</span> <span class="op">&lt;=</span> <span class="va">SLOPE_HI</span> <span class="op">&amp;</span></span>
@@ -586,65 +623,38 @@ quickly).</p>
 <span>    <span class="va">rows</span><span class="op">[[</span><span class="va">r</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu">tibble</span><span class="fu">::</span><span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html" class="external-link">tibble</a></span><span class="op">(</span>config <span class="op">=</span> <span class="va">ci</span>, worthy <span class="op">=</span> <span class="va">orc</span><span class="op">$</span><span class="va">worthy</span>, p_deploy <span class="op">=</span> <span class="va">pg</span>,</span>
 <span>                                p_boot <span class="op">=</span> <span class="va">p_boot</span>, freq_deploy <span class="op">=</span> <span class="va">freq_deploy</span><span class="op">)</span></span>
 <span>  <span class="op">}</span></span>
-<span><span class="op">}</span></span></code></pre></div>
-<pre><code><span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span>
-<span><span class="co">## Convergence problems.... stopping addition</span></span></code></pre>
-<div class="sourceCode" id="cb46"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">D</span> <span class="op">&lt;-</span> <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/bind_rows.html" class="external-link">bind_rows</a></span><span class="op">(</span><span class="va">rows</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span><span class="va">D</span> <span class="op">&lt;-</span> <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/bind_rows.html" class="external-link">bind_rows</a></span><span class="op">(</span><span class="va">rows</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">reliability_of</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">df</span>, <span class="va">col</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">df</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>bin <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/cut.html" class="external-link">cut</a></span><span class="op">(</span><span class="va">.data</span><span class="op">[[</span><span class="va">col</span><span class="op">]</span><span class="op">]</span>, <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span>, by <span class="op">=</span> <span class="fl">0.2</span><span class="op">)</span>,</span>
-<span>                            include.lowest <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span><span class="co"># QUANTILE bins, not equal-width ones. The gate probability is a conjunction of</span></span>
+<span><span class="co"># three criteria under a diffuse n=120 posterior, so it is heavily right-skewed</span></span>
+<span><span class="co"># and never approaches 1; equal-width bins put most cohorts in [0, 0.2] and</span></span>
+<span><span class="co"># leave the top bin empty, which destroys the resolution of the diagram.</span></span>
+<span><span class="co">#</span></span>
+<span><span class="co"># The 45-degree line is NOT the reference here. Posterior probabilities are</span></span>
+<span><span class="co"># calibrated when averaged over the prior that generated the truth, and the</span></span>
+<span><span class="co"># truth in this study comes from six hand-picked configurations in a fixed</span></span>
+<span><span class="co"># 50/50 worthy/unworthy split, which is not the model's prior. The diagram</span></span>
+<span><span class="co"># therefore reports RANKING and CONSERVATIVENESS; see gate_auc().</span></span>
+<span><span class="va">reliability_of</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">df</span>, <span class="va">col</span>, <span class="va">K</span> <span class="op">=</span> <span class="fl">4L</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">br</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/quantile.html" class="external-link">quantile</a></span><span class="op">(</span><span class="va">df</span><span class="op">[[</span><span class="va">col</span><span class="op">]</span><span class="op">]</span>, <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span>, length.out <span class="op">=</span> <span class="va">K</span> <span class="op">+</span> <span class="fl">1L</span><span class="op">)</span>,</span>
+<span>                               names <span class="op">=</span> <span class="cn">FALSE</span>, type <span class="op">=</span> <span class="fl">7</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">br</span><span class="op">)</span> <span class="op">&lt;</span> <span class="fl">3L</span><span class="op">)</span> <span class="va">br</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/range.html" class="external-link">range</a></span><span class="op">(</span><span class="va">df</span><span class="op">[[</span><span class="va">col</span><span class="op">]</span><span class="op">]</span><span class="op">)</span><span class="op">)</span>   <span class="co"># degenerate fallback</span></span>
+<span>  <span class="va">tab</span> <span class="op">&lt;-</span> <span class="va">df</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>bin <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/cut.html" class="external-link">cut</a></span><span class="op">(</span><span class="va">.data</span><span class="op">[[</span><span class="va">col</span><span class="op">]</span><span class="op">]</span>, <span class="va">br</span>, include.lowest <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">group_by</a></span><span class="op">(</span><span class="va">bin</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise</a></span><span class="op">(</span>mid <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">.data</span><span class="op">[[</span><span class="va">col</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>, emp <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">worthy</span><span class="op">)</span>,</span>
-<span>                     n <span class="op">=</span> <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/context.html" class="external-link">n</a></span><span class="op">(</span><span class="op">)</span>, .groups <span class="op">=</span> <span class="st">"drop"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>                     n <span class="op">=</span> <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/context.html" class="external-link">n</a></span><span class="op">(</span><span class="op">)</span>, .groups <span class="op">=</span> <span class="st">"drop"</span><span class="op">)</span></span>
+<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/bind_cols.html" class="external-link">bind_cols</a></span><span class="op">(</span><span class="va">tab</span>, <span class="fu">boot_bin_ci</span><span class="op">(</span><span class="va">df</span>, <span class="va">col</span>, <span class="va">br</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/is.finite.html" class="external-link">is.finite</a></span><span class="op">(</span><span class="va">mid</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span></span>
-<span>      emp_lo <span class="op">=</span> <span class="fu">purrr</span><span class="fu">::</span><span class="fu"><a href="https://purrr.tidyverse.org/reference/map2.html" class="external-link">map2_dbl</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">emp</span> <span class="op">*</span> <span class="va">n</span><span class="op">)</span>, <span class="va">n</span>, <span class="op">~</span> <span class="fu">wilson_ci</span><span class="op">(</span><span class="va">.x</span>, <span class="va">.y</span><span class="op">)</span><span class="op">[[</span><span class="st">"lo"</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>,</span>
-<span>      emp_hi <span class="op">=</span> <span class="fu">purrr</span><span class="fu">::</span><span class="fu"><a href="https://purrr.tidyverse.org/reference/map2.html" class="external-link">map2_dbl</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">emp</span> <span class="op">*</span> <span class="va">n</span><span class="op">)</span>, <span class="va">n</span>, <span class="op">~</span> <span class="fu">wilson_ci</span><span class="op">(</span><span class="va">.x</span>, <span class="va">.y</span><span class="op">)</span><span class="op">[[</span><span class="st">"hi"</span><span class="op">]</span><span class="op">]</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">mid</span>, <span class="va">emp</span>, <span class="va">emp_lo</span>, <span class="va">emp_hi</span>, <span class="va">n</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span><span class="va">rel</span>      <span class="op">&lt;-</span> <span class="fu">reliability_of</span><span class="op">(</span><span class="va">D</span>, <span class="st">"p_deploy"</span><span class="op">)</span>   <span class="co"># Bayesian gate</span></span>
 <span><span class="va">rel_boot</span> <span class="op">&lt;-</span> <span class="fu">reliability_of</span><span class="op">(</span><span class="va">D</span>, <span class="st">"p_boot"</span><span class="op">)</span>     <span class="co"># paired-bootstrap gate</span></span>
 <span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="va">rel</span>, digits <span class="op">=</span> <span class="fl">3</span>,</span>
-<span>             caption <span class="op">=</span> <span class="st">"Reliability of the Bayesian gate P(deploy-worthy) [Wilson 95%]"</span><span class="op">)</span></span></code></pre></div>
+<span>             caption <span class="op">=</span> <span class="st">"Bayesian gate P(deploy-worthy): quantile bins [cohort-bootstrap 95%]"</span><span class="op">)</span></span></code></pre></div>
 <table class="table">
-<caption>Reliability of the Bayesian gate P(deploy-worthy) [Wilson
+<caption>Bayesian gate P(deploy-worthy): quantile bins [cohort-bootstrap
 95%]</caption>
 <thead><tr class="header">
 <th align="right">mid</th>
@@ -655,41 +665,40 @@ quickly).</p>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td align="right">0.069</td>
-<td align="right">0.371</td>
-<td align="right">0.232</td>
-<td align="right">0.537</td>
-<td align="right">35</td>
+<td align="right">0.015</td>
+<td align="right">0.200</td>
+<td align="right">0.0</td>
+<td align="right">0.417</td>
+<td align="right">15</td>
 </tr>
 <tr class="even">
-<td align="right">0.301</td>
-<td align="right">0.667</td>
-<td align="right">0.391</td>
-<td align="right">0.862</td>
-<td align="right">12</td>
+<td align="right">0.086</td>
+<td align="right">0.467</td>
+<td align="right">0.2</td>
+<td align="right">0.750</td>
+<td align="right">15</td>
 </tr>
 <tr class="odd">
-<td align="right">0.489</td>
+<td align="right">0.253</td>
 <td align="right">0.667</td>
-<td align="right">0.354</td>
-<td align="right">0.879</td>
-<td align="right">9</td>
+<td align="right">0.4</td>
+<td align="right">0.900</td>
+<td align="right">15</td>
 </tr>
 <tr class="even">
-<td align="right">0.669</td>
-<td align="right">0.750</td>
-<td align="right">0.301</td>
-<td align="right">0.954</td>
-<td align="right">4</td>
+<td align="right">0.519</td>
+<td align="right">0.667</td>
+<td align="right">0.4</td>
+<td align="right">0.895</td>
+<td align="right">15</td>
 </tr>
 </tbody>
 </table>
-<div class="sourceCode" id="cb47"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb43"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="va">rel_boot</span>, digits <span class="op">=</span> <span class="fl">3</span>,</span>
-<span>             caption <span class="op">=</span> <span class="st">"Reliability of the paired-bootstrap joint-gate frequency"</span><span class="op">)</span></span></code></pre></div>
+<span>             caption <span class="op">=</span> <span class="st">"Paired-bootstrap joint-gate frequency: same bins"</span><span class="op">)</span></span></code></pre></div>
 <table class="table">
-<caption>Reliability of the paired-bootstrap joint-gate
-frequency</caption>
+<caption>Paired-bootstrap joint-gate frequency: same bins</caption>
 <thead><tr class="header">
 <th align="right">mid</th>
 <th align="right">emp</th>
@@ -699,50 +708,74 @@ frequency</caption>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td align="right">0.067</td>
-<td align="right">0.412</td>
-<td align="right">0.264</td>
-<td align="right">0.578</td>
-<td align="right">34</td>
+<td align="right">0.013</td>
+<td align="right">0.267</td>
+<td align="right">0.062</td>
+<td align="right">0.500</td>
+<td align="right">15</td>
 </tr>
 <tr class="even">
-<td align="right">0.284</td>
+<td align="right">0.091</td>
+<td align="right">0.400</td>
+<td align="right">0.158</td>
 <td align="right">0.667</td>
-<td align="right">0.417</td>
-<td align="right">0.848</td>
 <td align="right">15</td>
 </tr>
 <tr class="odd">
-<td align="right">0.495</td>
-<td align="right">0.556</td>
-<td align="right">0.267</td>
-<td align="right">0.811</td>
-<td align="right">9</td>
+<td align="right">0.242</td>
+<td align="right">0.733</td>
+<td align="right">0.500</td>
+<td align="right">0.941</td>
+<td align="right">15</td>
 </tr>
 <tr class="even">
-<td align="right">0.700</td>
-<td align="right">0.500</td>
-<td align="right">0.095</td>
-<td align="right">0.905</td>
-<td align="right">2</td>
+<td align="right">0.479</td>
+<td align="right">0.600</td>
+<td align="right">0.312</td>
+<td align="right">0.846</td>
+<td align="right">15</td>
 </tr>
 </tbody>
 </table>
-<div class="sourceCode" id="cb48"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">tp</span> <span class="op">&lt;-</span> <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/any.html" class="external-link">any</a></span><span class="op">(</span><span class="va">D</span><span class="op">$</span><span class="va">worthy</span><span class="op">)</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">D</span><span class="op">$</span><span class="va">freq_deploy</span><span class="op">[</span><span class="va">D</span><span class="op">$</span><span class="va">worthy</span><span class="op">]</span><span class="op">)</span> <span class="kw">else</span> <span class="cn">NA_real_</span></span>
+<div class="sourceCode" id="cb44"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">auc_bayes</span> <span class="op">&lt;-</span> <span class="fu">gate_auc</span><span class="op">(</span><span class="va">D</span><span class="op">$</span><span class="va">p_deploy</span>, <span class="va">D</span><span class="op">$</span><span class="va">worthy</span><span class="op">)</span>; <span class="va">auc_b_ci</span>  <span class="op">&lt;-</span> <span class="fu">gate_auc_ci</span><span class="op">(</span><span class="va">D</span>, <span class="st">"p_deploy"</span><span class="op">)</span></span>
+<span><span class="va">auc_boot</span>  <span class="op">&lt;-</span> <span class="fu">gate_auc</span><span class="op">(</span><span class="va">D</span><span class="op">$</span><span class="va">p_boot</span>,   <span class="va">D</span><span class="op">$</span><span class="va">worthy</span><span class="op">)</span>; <span class="va">auc_bt_ci</span> <span class="op">&lt;-</span> <span class="fu">gate_auc_ci</span><span class="op">(</span><span class="va">D</span>, <span class="st">"p_boot"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">tp</span> <span class="op">&lt;-</span> <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/any.html" class="external-link">any</a></span><span class="op">(</span><span class="va">D</span><span class="op">$</span><span class="va">worthy</span><span class="op">)</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">D</span><span class="op">$</span><span class="va">freq_deploy</span><span class="op">[</span><span class="va">D</span><span class="op">$</span><span class="va">worthy</span><span class="op">]</span><span class="op">)</span> <span class="kw">else</span> <span class="cn">NA_real_</span></span>
 <span><span class="va">fp</span> <span class="op">&lt;-</span> <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/any.html" class="external-link">any</a></span><span class="op">(</span><span class="op">!</span><span class="va">D</span><span class="op">$</span><span class="va">worthy</span><span class="op">)</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">D</span><span class="op">$</span><span class="va">freq_deploy</span><span class="op">[</span><span class="op">!</span><span class="va">D</span><span class="op">$</span><span class="va">worthy</span><span class="op">]</span><span class="op">)</span> <span class="kw">else</span> <span class="cn">NA_real_</span></span>
 <span><span class="va">brier_bayes</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="op">(</span><span class="va">D</span><span class="op">$</span><span class="va">p_deploy</span> <span class="op">-</span> <span class="va">D</span><span class="op">$</span><span class="va">worthy</span><span class="op">)</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span></span>
 <span><span class="va">brier_boot</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="op">(</span><span class="va">D</span><span class="op">$</span><span class="va">p_boot</span>   <span class="op">-</span> <span class="va">D</span><span class="op">$</span><span class="va">worthy</span><span class="op">)</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"Frequentist dichotomous rule: deploys %.0f%% of truly-worthy, %.0f%% of unworthy cohorts.\n"</span>,</span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"Base rate of truly worthy cohorts: %.3f (fixed by design).\n"</span>, <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">D</span><span class="op">$</span><span class="va">worthy</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<pre><code><span><span class="co">## Base rate of truly worthy cohorts: 0.500 (fixed by design).</span></span></code></pre>
+<div class="sourceCode" id="cb46"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"Mean stated gate probability: Bayesian %.3f, paired bootstrap %.3f.\n"</span>,</span>
+<span>            <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">D</span><span class="op">$</span><span class="va">p_deploy</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">D</span><span class="op">$</span><span class="va">p_boot</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<pre><code><span><span class="co">## Mean stated gate probability: Bayesian 0.218, paired bootstrap 0.206.</span></span></code></pre>
+<div class="sourceCode" id="cb48"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"Ranking AUC vs truth: Bayesian %.3f [%.3f, %.3f], bootstrap %.3f [%.3f, %.3f]\n"</span>,</span>
+<span>            <span class="va">auc_bayes</span>, <span class="va">auc_b_ci</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>, <span class="va">auc_b_ci</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span>, <span class="va">auc_boot</span>, <span class="va">auc_bt_ci</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>, <span class="va">auc_bt_ci</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<pre><code><span><span class="co">## Ranking AUC vs truth: Bayesian 0.703 [0.564, 0.831], bootstrap 0.687 [0.547, 0.819]</span></span></code></pre>
+<div class="sourceCode" id="cb50"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"Frequentist dichotomous rule: deploys %.0f%% of truly-worthy, %.0f%% of unworthy cohorts.\n"</span>,</span>
 <span>            <span class="fl">100</span> <span class="op">*</span> <span class="va">tp</span>, <span class="fl">100</span> <span class="op">*</span> <span class="va">fp</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## Frequentist dichotomous rule: deploys 0% of truly-worthy, 0% of unworthy cohorts.</span></span></code></pre>
-<div class="sourceCode" id="cb50"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb52"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"Probability Brier score vs truth: Bayesian gate = %.3f, paired bootstrap = %.3f (lower is better).\n"</span>,</span>
 <span>            <span class="va">brier_bayes</span>, <span class="va">brier_boot</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## Probability Brier score vs truth: Bayesian gate = 0.311, paired bootstrap = 0.329 (lower is better).</span></span></code></pre>
 <p>Both graded gates rank cohorts by worthiness; the dichotomous rule
-gives an over/under-confident yes/no only at this sample size.</p>
-<div class="sourceCode" id="cb52"><pre class="downlit sourceCode r">
+gives an over/under-confident yes/no only at this sample size. Both are
+also <em>conservative</em>: the mean stated probability sits below the
+base rate of truly worthy cohorts. That is expected, and it is why the
+45-degree line is not the reference — the truth here comes from six
+hand-picked configurations in a fixed 50/50 split, which is not the
+model’s prior, and posterior probabilities are calibrated only when
+averaged over the prior that generated the truth.</p>
+<p>Bins are quantiles of the gate probability, so each holds the same
+number of cohorts; the vertical bars are cohort-bootstrap 95% intervals
+on the empirical worthy fraction. The dashed 45-degree line is drawn for
+orientation only.</p>
+<div class="sourceCode" id="cb54"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">meth_lab</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Bayesian gate"</span>, <span class="st">"paired bootstrap gate"</span><span class="op">)</span></span>
 <span><span class="va">rel_both</span> <span class="op">&lt;-</span> <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/bind_rows.html" class="external-link">bind_rows</a></span><span class="op">(</span></span>
 <span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span><span class="va">rel</span>,      method <span class="op">=</span> <span class="va">meth_lab</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span><span class="op">)</span>,</span>
@@ -753,24 +786,33 @@ gives an over/under-confident yes/no only at this sample size.</p>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_path.html" class="external-link">geom_line</a></span><span class="op">(</span>linewidth <span class="op">=</span> <span class="fl">0.8</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_linerange.html" class="external-link">geom_errorbar</a></span><span class="op">(</span><span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>ymin <span class="op">=</span> <span class="va">emp_lo</span>, ymax <span class="op">=</span> <span class="va">emp_hi</span><span class="op">)</span>, width <span class="op">=</span> <span class="fl">0.02</span>,</span>
 <span>                         linewidth <span class="op">=</span> <span class="fl">0.4</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span><span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>size <span class="op">=</span> <span class="va">n</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span><span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>size <span class="op">=</span> <span class="va">n</span><span class="op">)</span>, shape <span class="op">=</span> <span class="fl">21</span>, colour <span class="op">=</span> <span class="st">"gray40"</span>,</span>
-<span>                      stroke <span class="op">=</span> <span class="fl">0.3</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="co"># Quantile bins hold equal numbers of cohorts, so point area would encode a</span></span>
+<span>  <span class="co"># constant. Fixed size, and the per-bin count goes in the table above.</span></span>
+<span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span>size <span class="op">=</span> <span class="fl">3.2</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span>size <span class="op">=</span> <span class="fl">3.2</span>, shape <span class="op">=</span> <span class="fl">21</span>, colour <span class="op">=</span> <span class="st">"gray40"</span>, stroke <span class="op">=</span> <span class="fl">0.3</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_manual.html" class="external-link">scale_colour_manual</a></span><span class="op">(</span></span>
 <span>    values <span class="op">=</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/setNames.html" class="external-link">setNames</a></span><span class="op">(</span><span class="va">bc_palette</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"blue"</span>, <span class="st">"orange"</span><span class="op">)</span><span class="op">]</span>, <span class="va">meth_lab</span><span class="op">)</span>,</span>
 <span>    name <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_size.html" class="external-link">scale_size_area</a></span><span class="op">(</span>name <span class="op">=</span> <span class="st">"cohorts"</span>, max_size <span class="op">=</span> <span class="fl">9</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/coord_cartesian.html" class="external-link">coord_cartesian</a></span><span class="op">(</span>xlim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span>, ylim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_continuous.html" class="external-link">scale_x_continuous</a></span><span class="op">(</span>breaks <span class="op">=</span> <span class="fu"><a href="../reference/number_ticks.html">number_ticks</a></span><span class="op">(</span><span class="fl">6</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_continuous.html" class="external-link">scale_y_continuous</a></span><span class="op">(</span>breaks <span class="op">=</span> <span class="fu"><a href="../reference/number_ticks.html">number_ticks</a></span><span class="op">(</span><span class="fl">6</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Stated P(deploy-worthy)"</span>, y <span class="op">=</span> <span class="st">"Empirical fraction truly worthy"</span>,</span>
-<span>                title <span class="op">=</span> <span class="st">"Graded deployment probabilities rank cohorts by truth"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Stated P(deploy-worthy)"</span>, y <span class="op">=</span> <span class="st">"Empirical fraction truly worthy"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="../reference/theme_bayesval.html">theme_bayesval</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p><img src="showcase_small_cohort_files/figure-html/act3-fig-1.png" class="r-plt" alt="" width="624"></p>
 <p>The Bayesian deployment probability ranks cohorts by true worthiness
-and tracks the diagonal — a graded, checkable confidence a dichotomous
-frequentist rule cannot offer. The paired-bootstrap gate is overlaid as
-the fair frequentist comparator.</p>
+— a graded, checkable confidence a dichotomous frequentist rule cannot
+offer. The paired-bootstrap gate is overlaid as the fair frequentist
+comparator.</p>
+<div class="section level3">
+<h3 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
+</h3>
+<p><code>bayesval</code> is the software companion to:</p>
+<blockquote>
+<p>Otte WM, Kampman SL, […] <em>A Bayesian framework for validating
+survival prediction models: posterior credible intervals for
+discrimination, calibration, and clinical utility.</em> in prep.</p>
+</blockquote>
+</div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

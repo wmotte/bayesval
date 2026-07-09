@@ -9,8 +9,7 @@ plot_calibration_band(ppc, main = NULL)
 \arguments{
 \item{ppc}{output of ppc_calibration().}
 
-\item{main}{plot title; default summarises the horizon and posterior
-predictive p-value.}
+\item{main}{plot title; \code{NULL} (the default) draws no title, per house style.}
 }
 \value{
 a ggplot object.

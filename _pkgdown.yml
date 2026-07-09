@@ -121,6 +121,7 @@ reference:
   - bc_palette
   - theme_bayesval
   - number_ticks
+  - bc_ggsave
 
 - title: internal
   contents:

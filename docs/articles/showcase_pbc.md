@@ -107,12 +107,6 @@ boot_ci <- function(fn, B = 400L, seed = 11) {
   c(est, stats::quantile(v, c(0.025, 0.975), names = FALSE))
 }
 fr_ici <- boot_ci(function(d, w) metric_ici(d, w, horizon = H5, method = "auto")["ICI"])
-```
-
-    ## Convergence problems.... stopping addition
-
-``` r
-
 fr_dnb <- boot_ci(function(d, w) metric_dnb(PT, H5)(d, w)["dNB"])
 
 frtab <- rbind(`Harrell C` = fr_C, `Calibration slope` = fr_slope,
@@ -164,12 +158,6 @@ cat(sprintf("net benefit dNB>0: %s\n", verdict(fr_dnb[2], fr_dnb[3], need_lo = 0
 ``` r
 
 J <- propagate_many(ps, suite, weights = "bootstrap", seed = 1)
-```
-
-    ## Convergence problems.... stopping addition
-
-``` r
-
 Jm <- unclass(J); colnames(Jm) <- sub("^[^.]+\\.", "", colnames(Jm))
 
 qi <- function(x) stats::quantile(x, c(0.025, 0.5, 0.975), names = FALSE)
@@ -248,3 +236,11 @@ cat(sprintf("P(JOINT deployment gate)   = %.2f\n", P_gate))
 Even in this small, real validation cohort, the coherent joint posterior
 turns several individually ambiguous frequentist intervals into a single
 deployment probability.
+
+### Citation
+
+`bayesval` is the software companion to:
+
+> Otte WM, Kampman SL, \[…\] *A Bayesian framework for validating
+> survival prediction models: posterior credible intervals for
+> discrimination, calibration, and clinical utility.* in prep.

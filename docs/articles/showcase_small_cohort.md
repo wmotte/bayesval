@@ -22,9 +22,10 @@ backend.
   posterior, so the honest joint probability differs materially from the
   naive product of marginals.
 - **Act 3** — the Bayesian deployment probability is itself
-  **calibrated**: pooled over many simulated cohorts with known ground
-  truth, when the gate says “deploy-worthy with probability p”, about a
-  fraction p really are.
+  **checkable**: pooled over many simulated cohorts with known ground
+  truth, a higher gate probability reliably means a more deploy-worthy
+  cohort, and the gate errs on the conservative side. A dichotomous
+  frequentist rule offers no such graded, checkable confidence.
 
 ``` r
 
@@ -146,6 +147,16 @@ suite <- list(
   ici     = function(d, w) metric_ici(d, w, horizon = H5, method = "auto")["ICI"],
   ibs     = function(d, w) metric_brier(d, w)["IBS"],
   nb      = metric_dnb(PT, H5))
+
+# The deployment gate reads only three of these. Act 3 propagates many cohorts x
+# S draws, so evaluating the full suite there would fit a `polspline::hare`
+# calibration smoother once per draw for an ICI that the gate never consults.
+# Metric evaluation draws no random numbers (the Dirichlet weights are drawn
+# before the metric call in propagate_metric), so the gate probability is
+# bit-identical to the one the full suite would produce.
+gate_suite <- list(harrell = metric_harrell_c,
+                   slope   = metric_cal_slope,
+                   nb      = metric_dnb(PT, H5))
 ```
 
 ### A fair frequentist comparator: the paired bootstrap joint gate
@@ -191,14 +202,42 @@ paired_boot_gate <- function(time, status, lp, surv2d, B, seed) {
     mean(pass, na.rm = TRUE)
   })
 }
-# Wilson score interval for a binomial proportion (uncertainty band on each
-# reliability-bin empirical fraction).
-wilson_ci <- function(k, n, z = 1.96) {
-  if (n == 0) return(c(lo = NA_real_, hi = NA_real_))
-  p <- k / n; d <- 1 + z^2 / n
-  ctr <- (p + z^2 / (2 * n)) / d
-  hw  <- z * sqrt(p * (1 - p) / n + z^2 / (4 * n^2)) / d
-  c(lo = max(0, ctr - hw), hi = min(1, ctr + hw))
+# Uncertainty band on each bin's empirical worthy fraction.
+#
+# A Wilson (binomial) interval would be wrong here. `worthy` is a deterministic
+# function of the data-generating configuration, so within a bin it is not a
+# Bernoulli draw; the only randomness is WHICH cohorts land in the bin. The bin
+# fraction is therefore a ratio estimator whose numerator and denominator are
+# both random and dependent. We resample cohorts (the independent unit) and
+# recompute the fraction inside fixed bin edges, which respects that structure.
+boot_bin_ci <- function(df, col, breaks, B = 2000L, seed = 11L) {
+  set.seed(seed)
+  lev <- levels(cut(df[[col]], breaks, include.lowest = TRUE))
+  reps <- replicate(B, {
+    s <- df[sample.int(nrow(df), nrow(df), replace = TRUE), ]
+    b <- cut(s[[col]], breaks, include.lowest = TRUE)
+    as.numeric(tapply(s$worthy, factor(b, levels = lev), mean))
+  })
+  tibble::tibble(
+    emp_lo = apply(reps, 1, stats::quantile, 0.025, na.rm = TRUE),
+    emp_hi = apply(reps, 1, stats::quantile, 0.975, na.rm = TRUE))
+}
+
+# Ranking summary: P(a truly worthy cohort is given a higher gate probability
+# than a truly unworthy one), ties counted as half. This is the quantity the
+# diagram actually supports; see the note on the diagonal in reliability_of().
+gate_auc <- function(p, worthy) {
+  pw <- p[worthy]; pu <- p[!worthy]
+  if (!length(pw) || !length(pu)) return(NA_real_)
+  mean(outer(pw, pu, ">") + 0.5 * outer(pw, pu, "=="))
+}
+gate_auc_ci <- function(df, col, B = 2000L, seed = 12L) {
+  set.seed(seed)
+  v <- replicate(B, {
+    s <- df[sample.int(nrow(df), nrow(df), replace = TRUE), ]
+    gate_auc(s[[col]], s$worthy)
+  })
+  stats::quantile(v, c(0.025, 0.975), names = FALSE, na.rm = TRUE)
 }
 ```
 
@@ -256,18 +295,6 @@ boot_ci <- function(fn, B = 400L, seed = 11) {
   c(est, stats::quantile(v, c(0.025, 0.975), names = FALSE))
 }
 fr_ici <- boot_ci(function(d, w) metric_ici(d, w, horizon = H5, method = "auto")["ICI"])
-```
-
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-
-``` r
-
 fr_dnb <- boot_ci(function(d, w) metric_dnb(PT, H5)(d, w)["dNB"])
 
 frtab <- rbind(`Harrell C` = fr_C, `Calibration slope` = fr_slope,
@@ -459,6 +486,10 @@ that recomputes every metric on the same replicate does preserve this
 dependence and yields a comparable joint frequency; the Bayesian gate
 adds model-parameter uncertainty and a coherent posterior read-out.
 
+The joint posterior of the two gate-critical metrics, with the gate bars
+drawn as dashed lines. The passing draws are the 5% of the posterior
+that clears all three criteria at once.
+
 ``` r
 
 gate_lab <- c("gate passes (also dNB > 0)", "gate fails")
@@ -467,7 +498,10 @@ joint_df <- tibble::tibble(
   gate = factor(ifelse(
     Jm[, "C_harrell"] >= C_MIN & Jm[, "cal_slope"] >= SLOPE_LO &
       Jm[, "cal_slope"] <= SLOPE_HI & Jm[, "dNB"] > 0,
-    gate_lab[1], gate_lab[2]), levels = gate_lab))
+    gate_lab[1], gate_lab[2]), levels = gate_lab)) |>
+  # the passing draws are a small minority inside the failing cloud; draw them
+  # last so they are not painted over by later failing draws.
+  dplyr::arrange(gate == gate_lab[1])
 ggplot2::ggplot(joint_df, ggplot2::aes(cal_slope, C_harrell, fill = gate)) +
   ggplot2::geom_vline(xintercept = c(SLOPE_LO, SLOPE_HI), linetype = 2, colour = "gray40") +
   ggplot2::geom_hline(yintercept = C_MIN, linetype = 2, colour = "gray40") +
@@ -475,14 +509,13 @@ ggplot2::ggplot(joint_df, ggplot2::aes(cal_slope, C_harrell, fill = gate)) +
   ggplot2::scale_fill_manual(values = stats::setNames(bc_palette[c("blue", "orange")], gate_lab)) +
   ggplot2::scale_x_continuous(breaks = number_ticks(6)) +
   ggplot2::scale_y_continuous(breaks = number_ticks(6)) +
-  ggplot2::labs(x = "Calibration slope", y = "Harrell C", fill = NULL,
-                title = sprintf("Joint posterior over the deployment gate  (P(gate) = %.2f)", P_gate)) +
+  ggplot2::labs(x = "Calibration slope", y = "Harrell C", fill = NULL) +
   theme_bayesval()
 ```
 
 ![](showcase_small_cohort_files/figure-html/act2-fig-1.png)
 
-## Act 3 — the deployment probability is calibrated against known truth
+## Act 3 — the deployment probability is checked against known truth
 
 Configurations spanning truly-worthy to truly-unworthy local cohorts,
 with a demo-scale sweep (kept small so this vignette builds quickly).
@@ -506,7 +539,7 @@ for (ci in seq_along(CONFIGS)) {
                        cens_rate = 0.55)$data
     psr <- psurv_external(published, dat, time = "time", status = "status",
                           horizons = HZ, S = 300L, seed = 1000L * ci + rep)
-    Jr <- unclass(propagate_many(psr, suite, weights = "bootstrap", seed = rep))
+    Jr <- unclass(propagate_many(psr, gate_suite, weights = "bootstrap", seed = rep))
     colnames(Jr) <- sub("^[^.]+\\.", "", colnames(Jr))
     pg <- mean(Jr[, "C_harrell"] >= C_MIN &
                Jr[, "cal_slope"] >= SLOPE_LO & Jr[, "cal_slope"] <= SLOPE_HI &
@@ -529,99 +562,94 @@ for (ci in seq_along(CONFIGS)) {
                                 p_boot = p_boot, freq_deploy = freq_deploy)
   }
 }
-```
-
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-    ## Convergence problems.... stopping addition
-
-``` r
-
 D <- dplyr::bind_rows(rows)
 
-reliability_of <- function(df, col) {
-  df |>
-    dplyr::mutate(bin = cut(.data[[col]], seq(0, 1, by = 0.2),
-                            include.lowest = TRUE)) |>
+# QUANTILE bins, not equal-width ones. The gate probability is a conjunction of
+# three criteria under a diffuse n=120 posterior, so it is heavily right-skewed
+# and never approaches 1; equal-width bins put most cohorts in [0, 0.2] and
+# leave the top bin empty, which destroys the resolution of the diagram.
+#
+# The 45-degree line is NOT the reference here. Posterior probabilities are
+# calibrated when averaged over the prior that generated the truth, and the
+# truth in this study comes from six hand-picked configurations in a fixed
+# 50/50 worthy/unworthy split, which is not the model's prior. The diagram
+# therefore reports RANKING and CONSERVATIVENESS; see gate_auc().
+reliability_of <- function(df, col, K = 4L) {
+  br <- unique(stats::quantile(df[[col]], seq(0, 1, length.out = K + 1L),
+                               names = FALSE, type = 7))
+  if (length(br) < 3L) br <- unique(range(df[[col]]))   # degenerate fallback
+  tab <- df |>
+    dplyr::mutate(bin = cut(.data[[col]], br, include.lowest = TRUE)) |>
     dplyr::group_by(bin) |>
     dplyr::summarise(mid = mean(.data[[col]]), emp = mean(worthy),
-                     n = dplyr::n(), .groups = "drop") |>
+                     n = dplyr::n(), .groups = "drop")
+  dplyr::bind_cols(tab, boot_bin_ci(df, col, br)) |>
     dplyr::filter(is.finite(mid)) |>
-    dplyr::mutate(
-      emp_lo = purrr::map2_dbl(round(emp * n), n, ~ wilson_ci(.x, .y)[["lo"]]),
-      emp_hi = purrr::map2_dbl(round(emp * n), n, ~ wilson_ci(.x, .y)[["hi"]])) |>
     dplyr::select(mid, emp, emp_lo, emp_hi, n)
 }
 rel      <- reliability_of(D, "p_deploy")   # Bayesian gate
 rel_boot <- reliability_of(D, "p_boot")     # paired-bootstrap gate
 knitr::kable(rel, digits = 3,
-             caption = "Reliability of the Bayesian gate P(deploy-worthy) [Wilson 95%]")
+             caption = "Bayesian gate P(deploy-worthy): quantile bins [cohort-bootstrap 95%]")
 ```
 
 |   mid |   emp | emp_lo | emp_hi |   n |
 |------:|------:|-------:|-------:|----:|
-| 0.069 | 0.371 |  0.232 |  0.537 |  35 |
-| 0.301 | 0.667 |  0.391 |  0.862 |  12 |
-| 0.489 | 0.667 |  0.354 |  0.879 |   9 |
-| 0.669 | 0.750 |  0.301 |  0.954 |   4 |
+| 0.015 | 0.200 |    0.0 |  0.417 |  15 |
+| 0.086 | 0.467 |    0.2 |  0.750 |  15 |
+| 0.253 | 0.667 |    0.4 |  0.900 |  15 |
+| 0.519 | 0.667 |    0.4 |  0.895 |  15 |
 
-Reliability of the Bayesian gate P(deploy-worthy) \[Wilson 95%\]
+Bayesian gate P(deploy-worthy): quantile bins \[cohort-bootstrap 95%\]
 {.table}
 
 ``` r
 
 knitr::kable(rel_boot, digits = 3,
-             caption = "Reliability of the paired-bootstrap joint-gate frequency")
+             caption = "Paired-bootstrap joint-gate frequency: same bins")
 ```
 
 |   mid |   emp | emp_lo | emp_hi |   n |
 |------:|------:|-------:|-------:|----:|
-| 0.067 | 0.412 |  0.264 |  0.578 |  34 |
-| 0.284 | 0.667 |  0.417 |  0.848 |  15 |
-| 0.495 | 0.556 |  0.267 |  0.811 |   9 |
-| 0.700 | 0.500 |  0.095 |  0.905 |   2 |
+| 0.013 | 0.267 |  0.062 |  0.500 |  15 |
+| 0.091 | 0.400 |  0.158 |  0.667 |  15 |
+| 0.242 | 0.733 |  0.500 |  0.941 |  15 |
+| 0.479 | 0.600 |  0.312 |  0.846 |  15 |
 
-Reliability of the paired-bootstrap joint-gate frequency {.table}
+Paired-bootstrap joint-gate frequency: same bins {.table}
 
 ``` r
+
+auc_bayes <- gate_auc(D$p_deploy, D$worthy); auc_b_ci  <- gate_auc_ci(D, "p_deploy")
+auc_boot  <- gate_auc(D$p_boot,   D$worthy); auc_bt_ci <- gate_auc_ci(D, "p_boot")
 
 tp <- if (any(D$worthy)) mean(D$freq_deploy[D$worthy]) else NA_real_
 fp <- if (any(!D$worthy)) mean(D$freq_deploy[!D$worthy]) else NA_real_
 brier_bayes <- mean((D$p_deploy - D$worthy)^2)
 brier_boot  <- mean((D$p_boot   - D$worthy)^2)
+cat(sprintf("Base rate of truly worthy cohorts: %.3f (fixed by design).\n", mean(D$worthy)))
+```
+
+    ## Base rate of truly worthy cohorts: 0.500 (fixed by design).
+
+``` r
+
+cat(sprintf("Mean stated gate probability: Bayesian %.3f, paired bootstrap %.3f.\n",
+            mean(D$p_deploy), mean(D$p_boot)))
+```
+
+    ## Mean stated gate probability: Bayesian 0.218, paired bootstrap 0.206.
+
+``` r
+
+cat(sprintf("Ranking AUC vs truth: Bayesian %.3f [%.3f, %.3f], bootstrap %.3f [%.3f, %.3f]\n",
+            auc_bayes, auc_b_ci[1], auc_b_ci[2], auc_boot, auc_bt_ci[1], auc_bt_ci[2]))
+```
+
+    ## Ranking AUC vs truth: Bayesian 0.703 [0.564, 0.831], bootstrap 0.687 [0.547, 0.819]
+
+``` r
+
 cat(sprintf("Frequentist dichotomous rule: deploys %.0f%% of truly-worthy, %.0f%% of unworthy cohorts.\n",
             100 * tp, 100 * fp))
 ```
@@ -637,7 +665,18 @@ cat(sprintf("Probability Brier score vs truth: Bayesian gate = %.3f, paired boot
     ## Probability Brier score vs truth: Bayesian gate = 0.311, paired bootstrap = 0.329 (lower is better).
 
 Both graded gates rank cohorts by worthiness; the dichotomous rule gives
-an over/under-confident yes/no only at this sample size.
+an over/under-confident yes/no only at this sample size. Both are also
+*conservative*: the mean stated probability sits below the base rate of
+truly worthy cohorts. That is expected, and it is why the 45-degree line
+is not the reference — the truth here comes from six hand-picked
+configurations in a fixed 50/50 split, which is not the model’s prior,
+and posterior probabilities are calibrated only when averaged over the
+prior that generated the truth.
+
+Bins are quantiles of the gate probability, so each holds the same
+number of cohorts; the vertical bars are cohort-bootstrap 95% intervals
+on the empirical worthy fraction. The dashed 45-degree line is drawn for
+orientation only.
 
 ``` r
 
@@ -651,24 +690,31 @@ ggplot2::ggplot(rel_both, ggplot2::aes(mid, emp, colour = method)) +
   ggplot2::geom_line(linewidth = 0.8) +
   ggplot2::geom_errorbar(ggplot2::aes(ymin = emp_lo, ymax = emp_hi), width = 0.02,
                          linewidth = 0.4) +
-  ggplot2::geom_point(ggplot2::aes(size = n)) +
-  ggplot2::geom_point(ggplot2::aes(size = n), shape = 21, colour = "gray40",
-                      stroke = 0.3) +
+  # Quantile bins hold equal numbers of cohorts, so point area would encode a
+  # constant. Fixed size, and the per-bin count goes in the table above.
+  ggplot2::geom_point(size = 3.2) +
+  ggplot2::geom_point(size = 3.2, shape = 21, colour = "gray40", stroke = 0.3) +
   ggplot2::scale_colour_manual(
     values = stats::setNames(bc_palette[c("blue", "orange")], meth_lab),
     name = NULL) +
-  ggplot2::scale_size_area(name = "cohorts", max_size = 9) +
   ggplot2::coord_cartesian(xlim = c(0, 1), ylim = c(0, 1)) +
   ggplot2::scale_x_continuous(breaks = number_ticks(6)) +
   ggplot2::scale_y_continuous(breaks = number_ticks(6)) +
-  ggplot2::labs(x = "Stated P(deploy-worthy)", y = "Empirical fraction truly worthy",
-                title = "Graded deployment probabilities rank cohorts by truth") +
+  ggplot2::labs(x = "Stated P(deploy-worthy)", y = "Empirical fraction truly worthy") +
   theme_bayesval()
 ```
 
 ![](showcase_small_cohort_files/figure-html/act3-fig-1.png)
 
-The Bayesian deployment probability ranks cohorts by true worthiness and
-tracks the diagonal — a graded, checkable confidence a dichotomous
-frequentist rule cannot offer. The paired-bootstrap gate is overlaid as
-the fair frequentist comparator.
+The Bayesian deployment probability ranks cohorts by true worthiness — a
+graded, checkable confidence a dichotomous frequentist rule cannot
+offer. The paired-bootstrap gate is overlaid as the fair frequentist
+comparator.
+
+### Citation
+
+`bayesval` is the software companion to:
+
+> Otte WM, Kampman SL, \[…\] *A Bayesian framework for validating
+> survival prediction models: posterior credible intervals for
+> discrimination, calibration, and clinical utility.* in prep.

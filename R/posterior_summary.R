@@ -46,14 +46,13 @@ posterior_vs_frequentist <- function(bayes, freq, digits = 3) {
 #' House style (FIGURE_STYLE.md): Okabe-Ito palette, grey dashed diagonal,
 #' credible band as a filled ribbon under the median line.
 #' @param ppc output of ppc_calibration().
-#' @param main plot title; default summarises the horizon and posterior
-#'        predictive p-value.
+#' @param main plot title; `NULL` (the default) draws no title, per house style.
 #' @return a ggplot object.
 #' @export
 plot_calibration_band <- function(ppc, main = NULL) {
+  # main = NULL means no panel title: house style keeps titles in the figure
+  # caption, so nothing is duplicated between the panel and the caption.
   b <- ppc$band
-  if (is.null(main)) main <- sprintf("Bayesian calibration (t = %s, ppp = %.2f)",
-                                     signif(ppc$horizon, 3), ppc$ppp)
   ggplot2::ggplot(b, ggplot2::aes(x = pred)) +
     ggplot2::geom_ribbon(ggplot2::aes(ymin = lower, ymax = upper),
                          fill = bc_palette[["orange"]], alpha = 0.25) +
@@ -73,10 +72,10 @@ plot_calibration_band <- function(ppc, main = NULL) {
 #' House style (FIGURE_STYLE.md): model curve in the primary palette colour with
 #' its credible ribbon, treat-all in grey, treat-none the grey zero line.
 #' @param pnb output of posterior_net_benefit().
-#' @param main plot title.
+#' @param main plot title; `NULL` (the default) draws no title, per house style.
 #' @return a ggplot object.
 #' @export
-plot_net_benefit <- function(pnb, main = "Posterior decision curve") {
+plot_net_benefit <- function(pnb, main = NULL) {
   m <- pnb$model
   lines_df <- dplyr::bind_rows(
     dplyr::mutate(dplyr::select(m, threshold, nb = median), strategy = "Model"),

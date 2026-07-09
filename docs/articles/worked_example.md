@@ -129,7 +129,7 @@ plot_calibration_band(ppc)
 pnb <- posterior_net_benefit(ps, thresholds = seq(0.1, 0.7, 0.05),
                              horizon = h5, weights = "bootstrap",
                              draws = 300L, seed = 4)
-plot_net_benefit(pnb, main = "GBSG posterior decision curve (5y)")
+plot_net_benefit(pnb)
 ```
 
 ![](worked_example_files/figure-html/dca-1.png)

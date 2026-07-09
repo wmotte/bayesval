@@ -17,8 +17,7 @@ plot_calibration_band(ppc, main = NULL)
 
 - main:
 
-  plot title; default summarises the horizon and posterior predictive
-  p-value.
+  plot title; `NULL` (the default) draws no title, per house style.
 
 ## Value
 

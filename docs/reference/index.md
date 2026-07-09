@@ -241,3 +241,7 @@ The one idea — propagate any frequentist estimator across the posterior
 
   pretty()-based axis ticks. Use as
   `scale_*_continuous(breaks = number_ticks(6))`.
+
+- [`bc_ggsave()`](https://wmotte.github.io/bayesval/reference/bc_ggsave.md)
+  : Write a figure at house resolution through a device that emits plain
+  sRGB.

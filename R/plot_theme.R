@@ -29,3 +29,31 @@ theme_bayesval <- function(base_size = 12) {
 #' @param n target number of ticks.
 #' @export
 number_ticks <- function(n) function(limits) pretty(limits, n)
+
+#' Write a figure at house resolution through a device that emits plain sRGB.
+#'
+#' R's default bitmap device on macOS (`type = "quartz"`) bakes an Apple
+#' "Generic RGB" ICC profile into the PNG *and* converts the pixel values into
+#' it. LaTeX ignores the embedded profile and renders the raw values, so an
+#' Okabe-Ito orange (`#E69F00`) prints as `#DE8E08` and the blue (`#0072B2`) as
+#' `#0B5DA2` — darker, hue-shifted, and with the palette's contrast flattened.
+#' Pin an sRGB device so the written pixels are the colours we asked for.
+#'
+#' @param filename output path.
+#' @param plot a ggplot object.
+#' @param width,height size in inches.
+#' @param dpi resolution (house style: 600).
+#' @param ... passed to [ggplot2::ggsave()].
+#' @export
+bc_ggsave <- function(filename, plot, width, height, dpi = 600, ...) {
+  if (requireNamespace("ragg", quietly = TRUE)) {
+    ggplot2::ggsave(filename, plot, device = ragg::agg_png,
+                    width = width, height = height, dpi = dpi, ...)
+  } else if (isTRUE(capabilities("cairo"))) {
+    ggplot2::ggsave(filename, plot, device = "png", type = "cairo",
+                    width = width, height = height, dpi = dpi, ...)
+  } else {
+    stop("Need `ragg` or a cairo-capable R to write sRGB figures; the quartz ",
+         "device would embed an Apple Generic RGB profile.", call. = FALSE)
+  }
+}

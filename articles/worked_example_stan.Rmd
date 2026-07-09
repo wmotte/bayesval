@@ -126,16 +126,21 @@ posterior — not its large-sample Laplace stand-in.
 
 # PPC and decision curve (genuine-Bayes)
 
+GBSG calibration at 5 years under the full-Bayes piecewise-exponential model:
+
 ```{r ppc}
 ppc <- ppc_calibration(ps, horizon = h5, method = "auto", draws = 200L, seed = 3)
-plot_calibration_band(ppc, main = sprintf(
-  "GBSG calibration @5y — full-Bayes pwexp (PPC p = %.2f)", ppc$ppp))
+plot_calibration_band(ppc)
 ```
+
+The posterior predictive p-value is `r sprintf("%.2f", ppc$ppp)`.
+
+The GBSG decision curve at 5 years:
 
 ```{r dca}
 pnb <- posterior_net_benefit(ps, thresholds = seq(0.1, 0.7, 0.05), horizon = h5,
                              weights = "bootstrap", draws = 300L, seed = 4)
-plot_net_benefit(pnb, main = "GBSG decision curve @5y — full-Bayes pwexp")
+plot_net_benefit(pnb)
 ```
 
 Both the calibration posterior predictive check and the decision-curve band

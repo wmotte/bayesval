@@ -157,7 +157,14 @@ metric_dcalibration <- function(draw, w = NULL, bins = 10L) {
 .calib_hare <- function(pred_risk, time, status, t) {
   pr <- pmin(pmax(pred_risk, 1e-6), 1 - 1e-6)
   cll <- log(-log(1 - pr))                 # complementary log-log of risk
-  fit <- polspline::hare(data = time, delta = status, cov = as.matrix(cll))
+  # polspline::hare() prints "Convergence problems.... stopping addition" on
+  # stdout when stepwise basis addition stops early. The returned fit is still
+  # usable, so this is chatter and not a failure; a genuine failure throws and is
+  # caught by the caller, which falls back to grouped Kaplan-Meier. Capture the
+  # output so per-draw propagation (S calls per cohort) does not flood the log.
+  invisible(utils::capture.output(
+    fit <- polspline::hare(data = time, delta = status, cov = as.matrix(cll)),
+    type = "output"))
   surv_t <- 1 - polspline::phare(q = t, cov = as.matrix(cll), fit = fit)
   1 - surv_t                                # observed risk at t
 }

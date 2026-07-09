@@ -4,12 +4,12 @@
 \alias{plot_net_benefit}
 \title{Plot posterior net-benefit bands from posterior_net_benefit() (ggplot2).}
 \usage{
-plot_net_benefit(pnb, main = "Posterior decision curve")
+plot_net_benefit(pnb, main = NULL)
 }
 \arguments{
 \item{pnb}{output of posterior_net_benefit().}
 
-\item{main}{plot title.}
+\item{main}{plot title; \code{NULL} (the default) draws no title, per house style.}
 }
 \value{
 a ggplot object.

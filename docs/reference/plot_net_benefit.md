@@ -7,7 +7,7 @@ line.
 ## Usage
 
 ``` r
-plot_net_benefit(pnb, main = "Posterior decision curve")
+plot_net_benefit(pnb, main = NULL)
 ```
 
 ## Arguments
@@ -18,7 +18,7 @@ plot_net_benefit(pnb, main = "Posterior decision curve")
 
 - main:
 
-  plot title.
+  plot title; `NULL` (the default) draws no title, per house style.
 
 ## Value
 
