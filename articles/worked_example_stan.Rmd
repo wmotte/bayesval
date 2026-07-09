@@ -14,8 +14,8 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
 `vignette("worked_example")` runs the Rotterdam → GBSG validation on the
 `coxph`-Laplace backend so it reproduces with only the `survival` package.
 Because CRAN `rstanarm` ships no `stan_surv`, this article instead fits the
-package's **primary full-Bayes** model---the `rstan` piecewise-exponential PH
-model (`backend = "stan_pwexp"`)---on the same cohort pair and compares the
+package's primary full-Bayes model - the `rstan` piecewise-exponential PH
+model (`backend = "stan_pwexp"`) - on the same cohort pair and compares the
 full-Bayes MCMC posterior to the Cox-Laplace approximation and the plain
 frequentist estimate.
 
@@ -28,7 +28,7 @@ rstan::rstan_options(auto_write = TRUE)
 YEAR <- 365.25
 ```
 
-# Data: harmonising the two cohorts
+## Data: harmonising the two cohorts
 
 Same harmonisation as `vignette("worked_example")`: recurrence-free survival
 as the Rotterdam endpoint, GBSG's tumour size categorised to match.
@@ -53,7 +53,7 @@ horizons <- c(2, 5); h5 <- 2L; tau <- 5
 form <- Surv(time, status) ~ age + nodes + grade3 + size + logpgr + hormon + meno
 ```
 
-# Full-Bayes fit (MCMC)
+## Full-Bayes fit (MCMC)
 
 ```{r stan}
 t0 <- Sys.time()
@@ -73,14 +73,14 @@ cat(sprintf("max Rhat %.3f, min ESS %.0f, divergences %d\n",
            obj$diagnostics$divergences))
 ```
 
-# External validation posterior on GBSG
+## External validation posterior on GBSG
 
 ```{r predict}
 ps <- stan_pwexp_predict(obj, test, time = "time", status = "status")
 ps
 ```
 
-# Posterior validation suite
+## Posterior validation suite
 
 ```{r suite}
 suite <- list(
@@ -97,7 +97,7 @@ knitr::kable(dplyr::select(tab, metric, summary),
              caption = "Full-Bayes (stan_pwexp) posterior median [95% CrI], GBSG @5y")
 ```
 
-# Full-Bayes vs Cox-Laplace vs frequentist
+## Full-Bayes vs Cox-Laplace vs frequentist
 
 ```{r compare}
 lp <- colMeans(ps$eta)
@@ -122,9 +122,9 @@ knitr::kable(posterior_vs_frequentist(tab, freq),
 The full-Bayes MCMC posterior reproduces the frequentist point estimates and
 agrees closely with the Cox-Laplace approximation reported in
 `vignette("worked_example")`, with credible intervals that carry the genuine
-posterior---not its large-sample Laplace stand-in.
+posterior - not its large-sample Laplace stand-in.
 
-# PPC and decision curve (full-Bayes)
+## PPC and decision curve (full-Bayes)
 
 GBSG calibration at 5 years under the full-Bayes piecewise-exponential model:
 

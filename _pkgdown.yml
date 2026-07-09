@@ -39,7 +39,11 @@ articles:
 
 reference:
 - title: Model layer
-  desc: Fit a posterior survival object (psurv) from any backend
+  desc: >
+    Fit a posterior survival object (`psurv`) from any model backend. 
+    This creates the unified, model-agnostic object that all downstream 
+    validation and propagation functions consume.
+
   contents:
   - fit_bayes_survival
   - psurv_external
@@ -53,6 +57,10 @@ reference:
   - make_psurv_fitter
 
 - title: MCMC diagnostics and priors
+  desc: >
+    Validate full-Bayes MCMC model fits. Assess mixing, divergences, and 
+    prior sensitivity to ensure the posterior is reliable before evaluating 
+    performance metrics.
   contents:
   - check_mcmc_gate
   - mcmc_gate
@@ -61,6 +69,9 @@ reference:
   - loo_survival
 
 - title: Caching
+  desc: >
+    Avoid redundant refits of computationally expensive models by caching 
+    `psurv` objects locally.
   contents:
   - fit_bayes_survival_cached
   - psurv_cache_key
@@ -69,7 +80,9 @@ reference:
   - clear_psurv_cache
 
 - title: Uncertainty propagation
-  desc: The one idea---propagate any frequentist estimator across the posterior
+  desc: >
+    The core idea: propagate any classical frequentist estimator across the 
+    posterior survival draws to obtain a full posterior distribution of the metric.
   contents:
   - propagate_metric
   - propagate_many

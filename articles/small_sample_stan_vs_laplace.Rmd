@@ -14,7 +14,7 @@ The agreement between the full-Bayes MCMC model and the Cox-Laplace
 approximation on Rotterdam→GBSG (see `vignette("worked_example")`) is a large,
 well-identified example. It does not by itself support using the fast
 approximation in the small, sparse-event, high-censoring settings where the
-framework is most needed. This article fits **both** backends on one small,
+framework is most needed. This article fits both backends on one small,
 high-censoring training cohort (n = 150, ~60% censored, moderate signal) and
 validates both on an independent small cohort of the same size, so any
 divergence between the true posterior and its large-sample approximation
@@ -31,7 +31,7 @@ rstan::rstan_options(auto_write = TRUE)
 set.seed(2027)
 ```
 
-# A small, sparse-event, high-censoring cohort pair
+## A small, sparse-event, high-censoring cohort pair
 
 ```{r dgm}
 sim_covariates <- function(n) {
@@ -69,7 +69,7 @@ cat(sprintf("Validation cohort: n=%d, %d events (%.0f%% censored)\n",
 form <- Surv(time, status) ~ x1 + x2
 ```
 
-# Cox-Laplace backend
+## Cox-Laplace backend
 
 ```{r cox}
 fit_cox <- coxph(form, data = train, x = TRUE, y = TRUE)
@@ -77,7 +77,7 @@ ps_cox  <- psurv_external(fit_cox, val, time = "time", status = "status",
                           horizons = horizons, S = 1000L, seed = 1L)
 ```
 
-# Full-Bayes MCMC (fewer pieces: sparse events)
+## Full-Bayes MCMC (fewer pieces: sparse events)
 
 ```{r stan}
 t0 <- Sys.time()
@@ -89,7 +89,7 @@ print(obj)
 ps_stan <- stan_pwexp_predict(obj, val, time = "time", status = "status")
 ```
 
-# Propagate the headline suite on both backends
+## Propagate the headline suite on both backends
 
 ```{r compare}
 suite <- list(
@@ -120,7 +120,7 @@ cat(sprintf("MCMC diagnostics on the small cohort: max Rhat %.3f, min ESS %.0f, 
 The full-Bayes MCMC posterior and the Cox-Laplace approximation agree closely
 on discrimination, calibration slope, and IBS even at this small, sparse-event,
 high-censoring sample size, and the MCMC diagnostics show no divergences or
-mixing problems---the fast Laplace approximation is a reasonable stand-in for
+mixing problems - the fast Laplace approximation is a reasonable stand-in for
 this framework's headline metrics, with the caveat that this is one cohort
 pair, not a systematic sweep (see the Part C coverage study in the source
 repository for that).

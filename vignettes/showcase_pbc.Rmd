@@ -31,7 +31,7 @@ library(bayesval)
 set.seed(2028)
 ```
 
-# Prepare data and fit the published model
+## Prepare data and fit the published model
 
 ```{r data}
 data(pbc)
@@ -42,15 +42,18 @@ pbc_sub <- pbc[complete.cases(pbc[, vars_pred]), ]
 train <- pbc_sub[!is.na(pbc_sub$trt), ]   # development: randomized patients
 val   <- pbc_sub[is.na(pbc_sub$trt), ]    # validation: non-randomized patients
 
-cat(sprintf("Development cohort: n = %d, events = %d\n", nrow(train), sum(train$status)))
-cat(sprintf("Validation cohort:  n = %d, events = %d\n", nrow(val), sum(val$status)))
+cat(sprintf("Development cohort: n = %d, events = %d\n",
+            nrow(train), sum(train$status)))
+cat(sprintf("Validation cohort:  n = %d, events = %d\n",
+            nrow(val), sum(val$status)))
 
-# Published Mayo model (coxph-Laplace backend for speed)
-published <- coxph(Surv(time, status) ~ age + edema + log(bili) + log(protime) + log(albumin),
+## Published Mayo model (coxph-Laplace backend for speed)
+published <- coxph(Surv(time, status) ~ age + edema + log(bili) + 
+                   log(protime) + log(albumin),
                    data = train, x = TRUE, y = TRUE)
 ```
 
-# Horizons, deployment gate, and validation suite
+## Horizons, deployment gate, and validation suite
 
 ```{r gate}
 HZ <- c(1096, 1826); H5 <- 2L; TAU <- 1826; PT <- 0.20   # days: 3y and 5y horizons
@@ -69,7 +72,7 @@ suite <- list(
   nb      = metric_dnb(PT, H5))
 ```
 
-# Frequentist read-out on the validation cohort
+## Frequentist read-out on the validation cohort
 
 ```{r freq}
 Terms <- stats::delete.response(stats::terms(published))
@@ -103,7 +106,8 @@ boot_ci <- function(fn, B = 400L, seed = 11) {
   })
   c(est, stats::quantile(v, c(0.025, 0.975), names = FALSE))
 }
-fr_ici <- boot_ci(function(d, w) metric_ici(d, w, horizon = H5, method = "auto")["ICI"])
+fr_ici <- boot_ci(function(d, w) metric_ici(d, w, horizon = H5,
+                                    method = "auto")["ICI"])
 fr_dnb <- boot_ci(function(d, w) metric_dnb(PT, H5)(d, w)["dNB"])
 
 frtab <- rbind(`Harrell C` = fr_C, `Calibration slope` = fr_slope,
@@ -118,13 +122,16 @@ verdict <- function(lo, hi, need_lo = NA, need_hi = NA) {
   bad_hi <- if (is.na(need_hi)) FALSE else lo > need_hi
   if (ok_lo && ok_hi) "PASS" else if (bad_lo || bad_hi) "FAIL" else "AMBIGUOUS"
 }
-cat(sprintf("discrimination C>=%.2f: %s\n", C_MIN, verdict(fr_C[2], fr_C[3], need_lo = C_MIN)))
+cat(sprintf("discrimination C>=%.2f: %s\n", C_MIN,
+            verdict(fr_C[2], fr_C[3], need_lo = C_MIN)))
 cat(sprintf("calibration slope in [%.2f,%.2f]: %s\n", SLOPE_LO, SLOPE_HI,
-            verdict(fr_slope[2], fr_slope[3], need_lo = SLOPE_LO, need_hi = SLOPE_HI)))
-cat(sprintf("net benefit dNB>0: %s\n", verdict(fr_dnb[2], fr_dnb[3], need_lo = 0)))
+            verdict(fr_slope[2], fr_slope[3], need_lo = SLOPE_LO, 
+                    need_hi = SLOPE_HI)))
+cat(sprintf("net benefit dNB>0: %s\n",
+            verdict(fr_dnb[2], fr_dnb[3], need_lo = 0)))
 ```
 
-# Bayesian read-out: posteriors and deployment probabilities
+## Bayesian read-out: posteriors and deployment probabilities
 
 ```{r bayes}
 J <- propagate_many(ps, suite, weights = "bootstrap", seed = 1)

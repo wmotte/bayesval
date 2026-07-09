@@ -16,10 +16,10 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
 ```
 
 This vignette applies the Bayesian validation framework end-to-end. We train a
-prognostic survival model on the **Rotterdam** breast-cancer cohort and
-**externally validate** it on the **GBSG** cohort at a clinically meaningful
-**5-year** horizon. Every validation quantity is reported as a **posterior
-median with a 95 % credible interval**, next to the usual frequentist estimate.
+prognostic survival model on the Rotterdam breast-cancer cohort and
+externally validate it on the GBSG cohort at a clinically meaningful
+5-year horizon. Every validation quantity is reported as a posterior
+median with a 95 % credible interval, next to the usual frequentist estimate.
 
 > The analysis runs on the `coxph`-Laplace backend so it reproduces with only
 > the `survival` package. The primary full-Bayes path (`backend = "stan_pwexp"`)
@@ -32,7 +32,7 @@ library(bayesval)
 YEAR <- 365.25
 ```
 
-# Data: harmonising the two cohorts
+## Data: harmonising the two cohorts
 
 Recurrence-free survival is the Rotterdam endpoint (recurrence or death); GBSG
 records it directly. We harmonise the shared covariates (tumour size is
@@ -57,7 +57,7 @@ test  <- prep(gbsg, "rfstime", "status") |> tidyr::drop_na()
 horizons <- c(2, 5); h5 <- 2L; tau <- 5
 ```
 
-# Model layer: posterior survival on the external cohort
+## Model layer: posterior survival on the external cohort
 
 Fit on Rotterdam, then evaluate the fitted model's Laplace posterior on GBSG.
 
@@ -69,10 +69,10 @@ ps   <- psurv_external(fit, test, time = "time", status = "status",
 ps
 ```
 
-# Posterior validation suite
+## Posterior validation suite
 
 Each metric is propagated across the posterior with the Bayesian bootstrap, so
-the credible interval carries **both** model-parameter and evaluation-sample
+the credible interval carries both model-parameter and evaluation-sample
 uncertainty.
 
 ```{r suite}
@@ -93,19 +93,19 @@ knitr::kable(dplyr::select(tab, metric, summary), caption =
              "Posterior median [95% CrI] at 5 years (param + bootstrap)")
 ```
 
-Discrimination is moderate (Harrell C ≈ 0.66, Uno C ≈ 0.65). The **calibration
-slope < 1** and **ICI ≈ 0.09** flag real external miscalibration---the model's
+Discrimination is moderate (Harrell C ≈ 0.66, Uno C ≈ 0.65). The calibration
+slope < 1 and ICI ≈ 0.09 flag real external miscalibration - the model's
 risks need recalibration for this cohort, a conclusion discrimination alone
 cannot give.
 
-# Calibration as a posterior predictive check
+## Calibration as a posterior predictive check
 
 ```{r ppc}
 ppc <- ppc_calibration(ps, horizon = h5, method = "auto", draws = 200L, seed = 3)
 plot_calibration_band(ppc)
 ```
 
-# Decision-analytic layer
+## Decision-analytic layer
 
 ```{r dca}
 pnb <- posterior_net_benefit(ps, thresholds = seq(0.1, 0.7, 0.05),
@@ -118,7 +118,7 @@ The model's net-benefit band lies above both "treat all" and "treat none" across
 clinically relevant thresholds, so it is decision-analytically useful despite the
 imperfect calibration.
 
-# Headline: Bayesian vs frequentist
+## Headline: Bayesian vs frequentist
 
 ```{r headline}
 lp <- colMeans(ps$eta)
@@ -142,7 +142,7 @@ knitr::kable(posterior_vs_frequentist(tab, freq),
 
 The Bayesian posterior medians reproduce the frequentist point estimates (they
 use the same estimators), while the credible intervals additionally propagate
-model-parameter uncertainty---the coherent, probabilistic replacement for the
+model-parameter uncertainty - the coherent, probabilistic replacement for the
 usual bootstrap CI.
 
 > The primary full-Bayes MCMC path (`backend = "stan_pwexp"`) and internal
