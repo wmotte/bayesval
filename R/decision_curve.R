@@ -8,6 +8,11 @@
 # over posterior draws -> net-benefit bands and P(model beats treat-all/none).
 # ---------------------------------------------------------------------------
 
+# Net benefit lives on the scale of an event probability, so a difference below
+# this is a floating-point tie and not a decision-analytic gain. Any comparison
+# of a model net benefit against a default strategy must go through it.
+.nb_tol <- 1e-8
+
 #' Net benefit across thresholds for a single draw.
 #' @param draw a `psurv_draw()` list for a single posterior draw.
 #' @param thresholds numeric vector of risk thresholds p_t.
@@ -29,13 +34,20 @@ net_benefit_draw <- function(draw, thresholds, horizon = NULL, w = NULL) {
     odds <- pt / (1 - pt)
     pos <- risk >= pt
     f   <- sum(w[pos])                       # weighted P(flagged positive)
+    nb_all[j] <- r_all - (1 - r_all) * odds
     if (f <= 0) {
       nb_model[j] <- 0
+    } else if (all(pos)) {
+      # Flagging everyone IS treat-all. Recomputing it as f * r - f * (1-r) * odds
+      # differs from nb_all in the last bit, because f is sum(w) = 1 only up to
+      # floating-point summation error. That noise is ~1e-16 with an arbitrary
+      # sign, and a downstream `NB_model > NB_all` test reads half of it as a
+      # real benefit. Assign the identical value so the difference is exactly 0.
+      nb_model[j] <- nb_all[j]
     } else {
       r <- 1 - .km_at(draw$time[pos], draw$status[pos], t, w[pos])
       nb_model[j] <- f * r - f * (1 - r) * odds
     }
-    nb_all[j] <- r_all - (1 - r_all) * odds
   }
   list(model = nb_model, all = nb_all)
 }
@@ -77,7 +89,10 @@ posterior_net_benefit <- function(ps, thresholds = seq(0.05, 0.6, by = 0.05),
     upper  = apply(X, 2L, stats::quantile, 0.975, na.rm = TRUE, names = FALSE))
 
   best_default <- pmax(A, 0)                            # treat-all or treat-none
-  p_useful <- colMeans(M > best_default, na.rm = TRUE)
+  # Strictly greater, but only beyond .nb_tol: at low thresholds the model flags
+  # every subject and ties the better default exactly, and a bare `>` would score
+  # the rounding residue of that tie as usefulness in about half of those draws.
+  p_useful <- colMeans(M > best_default + .nb_tol, na.rm = TRUE)
 
   list(thresholds = thresholds, weights = wmode,
        model = band(M), all = band(A),
