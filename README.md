@@ -1,7 +1,5 @@
 # bayesval
 
-**Package website & documentation:** <https://wmotte.github.io/bayesval/index.html>
-
 `bayesval` is an R package for the **external validation** of survival
 prediction models: taking a Cox proportional-hazards model developed elsewhere
 and asking how well it discriminates, calibrates, and supports clinical
