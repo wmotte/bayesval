@@ -1,18 +1,31 @@
 # bayesval
 
-`bayesval` helps validate survival prediction models when the fitted model is
-Bayesian, but the validation estimators are the familiar finite-sample tools
-clinicians and methodologists already use. It evaluates those estimators across
-posterior survival draws and reports the induced uncertainty.
+**Package website & documentation:** <https://wmotte.github.io/bayesval/index.html>
 
-In practice this means that Harrell/Uno/Gonen-Heller/Antolini concordance,
-time-dependent AUC, calibration-in-the-large, calibration slope, ICI/E50/E90,
-D-calibration, IPCW Brier/IBS/IPA, R²_D, and decision-curve net benefit can be
-reported as posterior distributions with credible intervals. The core idea is
-simple: every performance estimator `M` is treated as a functional `M(S, data)`
-of a posterior survival object and the validation data. Evaluate the existing
-estimator at each posterior draw; the collection of per-draw values is the
-posterior distribution for that finite-sample estimator.
+`bayesval` is an R package for the **external validation** of survival
+prediction models: taking a Cox proportional-hazards model developed elsewhere
+and asking how well it discriminates, calibrates, and supports clinical
+decisions in a new — often small and event-poor — validation cohort. It keeps
+the familiar finite-sample validation estimators that clinicians and
+methodologists already use, but evaluates each one across the posterior survival
+draws of a Bayesian model, so every performance measure is reported as a
+posterior distribution with a credible interval instead of a single point
+estimate. A pre-specified deployment gate then reads off as one posterior
+probability that the model is fit for local use.
+
+The same propagation works for apparent, internal, and internal-external
+designs, but **external validation — deciding whether a model developed
+elsewhere can be trusted in a new setting — is the problem the package is built
+around**, and the one every worked example below illustrates.
+
+This covers the full validation toolkit — Harrell/Uno/Gonen-Heller/Antolini
+concordance, time-dependent AUC, calibration-in-the-large, calibration slope,
+ICI/E50/E90, D-calibration, IPCW Brier/IBS/IPA, R²_D, and decision-curve net
+benefit — each reported as a posterior distribution with a credible interval.
+The core idea: every performance estimator `M` is treated as a functional
+`M(S, data)` of a posterior survival object and the validation data. Evaluate
+the existing estimator at each posterior draw; the collection of per-draw values
+is the posterior distribution for that finite-sample estimator.
 
 Two uncertainty sources are kept explicit: model-parameter uncertainty from the
 posterior survival draws, and evaluation-sample uncertainty from a Bayesian
@@ -114,8 +127,19 @@ Posterior metric objects have `summary()` methods that report the median,
 credible interval, finite-draw counts, and an unreliability flag when more than
 5% of draws are non-finite.
 
-Worked examples live in `vignettes/`. Heavier Stan articles are pre-rendered
-outside the normal pkgdown build; see `articles/README.md` for that workflow.
+Worked examples live in `vignettes/`, and most are external validations on
+public survival cohorts:
+
+- `worked_example.R` — Rotterdam → GBSG breast cancer (the headline example)
+- `showcase_pbc.R` — Mayo PBC, randomized → non-randomized patients
+- `temporal_validation.R` — one Rotterdam-trained model on a later Rotterdam era against GBSG
+- `worked_example_lung.R` — NCCTG lung, split by recruiting centre
+- `worked_example_colon.R` — colon adjuvant trial, split by treatment arm
+
+`showcase_small_cohort.R` runs the deployment-gate showcase on a small simulated
+cohort with a known oracle. Heavier Stan articles (`worked_example_stan.R`,
+`small_sample_stan_vs_laplace.R`) are pre-rendered outside the normal pkgdown
+build; see `articles/README.md` for that workflow.
 
 ## Development checks
 

@@ -11,9 +11,9 @@
 <script src="deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="bayesval">
-<meta name="description" content="Bayesian validation for Cox proportional-hazards prediction models: propagate finite-sample discrimination, calibration, performance, and clinical-utility estimators across posterior survival draws and report the induced uncertainty.
+<meta name="description" content="Bayesian external validation of Cox proportional-hazards survival prediction models: propagate finite-sample discrimination, calibration, performance, and clinical-utility estimators across posterior survival draws and report the induced uncertainty as credible intervals.
 ">
-<meta property="og:description" content="Bayesian validation for Cox proportional-hazards prediction models: propagate finite-sample discrimination, calibration, performance, and clinical-utility estimators across posterior survival draws and report the induced uncertainty.
+<meta property="og:description" content="Bayesian external validation of Cox proportional-hazards survival prediction models: propagate finite-sample discrimination, calibration, performance, and clinical-utility estimators across posterior survival draws and report the induced uncertainty as credible intervals.
 ">
 </head>
 <body>
@@ -40,6 +40,8 @@
 <li><a class="dropdown-item" href="articles/worked_example.html">Worked example (Rotterdam → GBSG)</a></li>
     <li><a class="dropdown-item" href="articles/showcase_small_cohort.html">Showcase: small local cohort</a></li>
     <li><a class="dropdown-item" href="articles/showcase_pbc.html">Showcase: Mayo PBC cohort</a></li>
+    <li><a class="dropdown-item" href="articles/worked_example_lung.html">External validation: NCCTG lung (centre split)</a></li>
+    <li><a class="dropdown-item" href="articles/worked_example_colon.html">External validation: colon adjuvant trial (arm split)</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><a class="dropdown-item" href="articles/worked_example_stan.html">Worked example with the full-Bayes model (pre-rendered)</a></li>
     <li><a class="dropdown-item" href="articles/small_sample_stan_vs_laplace.html">Full-Bayes MCMC vs Cox-Laplace (pre-rendered)</a></li>
@@ -61,7 +63,9 @@
   <main id="main" class="col-md-9"><div class="section level1">
 <div class="page-header"><h1 id="bayesval">bayesval<a class="anchor" aria-label="anchor" href="#bayesval"></a>
 </h1></div>
-<p><code>bayesval</code> helps validate survival prediction models when the fitted model is Bayesian, but the validation estimators are the familiar finite-sample tools clinicians and methodologists already use. It evaluates those estimators across posterior survival draws and reports the induced uncertainty.</p>
+<p><strong>Package website &amp; documentation:</strong> <a href="https://wmotte.github.io/bayesval/index.html" class="uri">https://wmotte.github.io/bayesval/index.html</a></p>
+<p><code>bayesval</code> is an R package for the <strong>external validation</strong> of survival prediction models: taking a Cox proportional-hazards model developed elsewhere and asking how well it discriminates, calibrates, and supports clinical decisions in a new — often small and event-poor — validation cohort. It keeps the familiar finite-sample validation estimators that clinicians and methodologists already use, but evaluates each one across the posterior survival draws of a Bayesian model, so every performance measure is reported as a posterior distribution with a credible interval instead of a single point estimate. A pre-specified deployment gate then reads off as one posterior probability that the model is fit for local use.</p>
+<p>The same propagation works for apparent, internal, and internal-external designs, but <strong>external validation — deciding whether a model developed elsewhere can be trusted in a new setting — is the problem the package is built around</strong>, and the one every worked example below illustrates.</p>
 <p>In practice this means that Harrell/Uno/Gonen-Heller/Antolini concordance, time-dependent AUC, calibration-in-the-large, calibration slope, ICI/E50/E90, D-calibration, IPCW Brier/IBS/IPA, R²_D, and decision-curve net benefit can be reported as posterior distributions with credible intervals. The core idea is simple: every performance estimator <code>M</code> is treated as a functional <code>M(S, data)</code> of a posterior survival object and the validation data. Evaluate the existing estimator at each posterior draw; the collection of per-draw values is the posterior distribution for that finite-sample estimator.</p>
 <p>Two uncertainty sources are kept explicit: model-parameter uncertainty from the posterior survival draws, and evaluation-sample uncertainty from a Bayesian bootstrap over the validation set. No new point estimators are introduced; <code><a href="reference/propagate_metric.html">propagate_metric()</a></code> is the propagation wrapper.</p>
 <div class="section level2">
@@ -168,11 +172,24 @@
 </li>
 <li>local entry point for writing a new metric: <code><a href="reference/propagate_metric.html">?propagate_metric</a></code>
 </li>
-<li>full package help: <code><a href="https://rdrr.io/pkg/bayesval/man" class="external-link">help(package = "bayesval")</a></code>
+<li>full package help: <code><a href="https://wmotte.github.io/bayesval/reference">help(package = "bayesval")</a></code>
 </li>
 </ul>
 <p>Posterior metric objects have <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> methods that report the median, credible interval, finite-draw counts, and an unreliability flag when more than 5% of draws are non-finite.</p>
-<p>Worked examples live in <code>vignettes/</code>. Heavier Stan articles are pre-rendered outside the normal pkgdown build; see <code>articles/README.md</code> for that workflow.</p>
+<p>Worked examples live in <code>vignettes/</code>, and most are external validations on public survival cohorts:</p>
+<ul>
+<li>
+<code>worked_example.R</code> — Rotterdam → GBSG breast cancer (the headline example)</li>
+<li>
+<code>showcase_pbc.R</code> — Mayo PBC, randomized → non-randomized patients</li>
+<li>
+<code>temporal_validation.R</code> — one Rotterdam-trained model on a later Rotterdam era against GBSG</li>
+<li>
+<code>worked_example_lung.R</code> — NCCTG lung, split by recruiting centre</li>
+<li>
+<code>worked_example_colon.R</code> — colon adjuvant trial, split by treatment arm</li>
+</ul>
+<p><code>showcase_small_cohort.R</code> runs the deployment-gate showcase on a small simulated cohort with a known oracle. Heavier Stan articles (<code>worked_example_stan.R</code>, <code>small_sample_stan_vs_laplace.R</code>) are pre-rendered outside the normal pkgdown build; see <code>articles/README.md</code> for that workflow.</p>
 </div>
 <div class="section level2">
 <h2 id="development-checks">Development checks<a class="anchor" aria-label="anchor" href="#development-checks"></a>

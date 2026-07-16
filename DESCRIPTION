@@ -1,13 +1,14 @@
 Package: bayesval
-Title: Bayesian Probabilistic Validation of Cox Prediction Models
+Title: Bayesian External Validation of Cox Survival Prediction Models
 Version: 0.1.0
 Authors@R: c(
     person("Willem M.", "Otte", email = "w.m.otte@umcutrecht.nl",
            role = c("aut", "cre"), comment = c(ORCID = "0000-0003-1511-6834")),
     person("Sem L.", "Kampman", role = "aut",
            comment = c(ORCID = "0009-0004-2093-9389")))
-Description: Turns standard performance assessment of Cox proportional-hazards
-    prediction models into a Bayesian posterior-propagation workflow:
+Description: Tools for the external validation of Cox proportional-hazards
+    survival prediction models, turning standard performance assessment into a
+    Bayesian posterior-propagation workflow:
     every finite-sample performance estimator (Harrell/Uno/Gonen-Heller/Antolini concordance,
     time-dependent AUC, calibration-in-the-large, slope, ICI/E50/E90,
     D-calibration, IPCW Brier/IBS/IPA, R2_D, and decision-curve net benefit) is

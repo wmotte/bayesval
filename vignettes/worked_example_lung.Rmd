@@ -1,0 +1,205 @@
+---
+title: "External validation on the NCCTG lung cohort (centre split)"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{External validation on the NCCTG lung cohort (centre split)}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      fig.width = 6.5, fig.height = 5)
+```
+
+This article externally validates a Cox model on the NCCTG advanced-lung-cancer
+cohort (`survival::lung`). The cohort is small and event-rich with some missing
+covariates, so it exercises the small-cohort deployment gate. We develop the
+model on the three largest recruiting institutes and validate it on the
+remaining institutes: a centre split keeps the validation cohort independent of
+development.
+
+Discrimination here is modest and calibration is broken. A discrimination
+summary on its own looks only mediocre; the joint posterior separates the two
+and returns a clear low-deployment answer.
+
+```{r load}
+suppressMessages({library(survival); library(dplyr)})
+library(bayesval)
+YEAR <- 365.25
+```
+
+## Prepare data and split by recruiting centre
+
+`status` is coded 1 = censored, 2 = dead; we recode it to the framework's 0/1.
+The meal-calorie variable is dropped for excess missingness (the point where the
+multiple-imputation options in the framework would apply), and the retained
+covariates are analysed complete-case.
+
+```{r data}
+lung_cc <- lung |>
+  transmute(inst,
+            time   = time / YEAR,               # days -> years
+            status = status - 1L,               # 1/2 -> 0/1
+            age,
+            sex    = factor(sex, levels = c(1, 2), labels = c("male", "female")),
+            ph.ecog, ph.karno, wt.loss) |>
+  na.omit()
+
+## Centre split: the three largest institutes develop, the rest validate.
+inst_by_size <- as.integer(names(sort(table(lung_cc$inst), decreasing = TRUE)))
+dev_inst <- inst_by_size[1:3]
+train <- lung_cc |> filter(inst %in% dev_inst)  |> select(-inst)
+test  <- lung_cc |> filter(!inst %in% dev_inst) |> select(-inst)
+
+cat(sprintf("Train (institutes %s): n = %d, %d events\n",
+            paste(sort(dev_inst), collapse = ", "),
+            nrow(train), sum(train$status)))
+cat(sprintf("Test  (other institutes): n = %d, %d events, %.0f%% censored\n",
+            nrow(test), sum(test$status), 100 * mean(test$status == 0)))
+
+fit <- coxph(Surv(time, status) ~ age + sex + ph.ecog + ph.karno + wt.loss,
+             data = train, x = TRUE, y = TRUE)
+```
+
+## Posterior survival object and the deployment gate
+
+The fitted model is carried onto the validation cohort as a posterior survival
+object. The gate is fixed before the read-out: adequate discrimination
+(Harrell C >= 0.65), acceptable calibration (slope in [0.80, 1.25]), and
+positive net benefit at a 20% risk threshold. The headline horizon is 1 year.
+
+```{r gate}
+ps <- psurv_external(fit, test, time = "time", status = "status",
+                     horizons = c(1, 2), S = 500L, seed = 1)
+
+hH <- 1L; tau <- 2; PT <- 0.20
+C_MIN <- 0.65; SLOPE_LO <- 0.80; SLOPE_HI <- 1.25; NB_TOL <- 1e-8
+
+metric_dnb <- function(pt, h) function(draw, w) {
+  nb <- net_benefit_draw(draw, thresholds = pt, horizon = h, w = w)
+  c(NB_model = nb$model, dNB = nb$model - max(nb$all, 0))
+}
+# Grouped Kaplan-Meier calibration: the cohort's short survival packs 1-year
+# risks into the upper range, where the adaptive-hazard smoother is unstable, so
+# the grouped estimator is the documented fallback here.
+suite <- list(
+  harrell = metric_harrell_c,
+  uno     = function(d, w) metric_uno_c(d, w, tau = tau),
+  gonen   = metric_gonen_k,
+  citl    = function(d, w) metric_citl(d, w)[paste0("CITL_t", hH)],
+  slope   = metric_cal_slope,
+  ici     = function(d, w) metric_ici(d, w, horizon = hH, method = "group"),
+  brier   = function(d, w) metric_brier(d, w)[c(paste0("Brier_t", hH), "IBS")],
+  ipa     = function(d, w) metric_ipa(d, w)[paste0("IPA_t", hH)],
+  r2d     = metric_r2d,
+  nb      = metric_dnb(PT, hH))
+```
+
+## Bayesian read-out: posteriors and frequentist comparators
+
+Every measure is propagated across the posterior draws with the Bayesian
+bootstrap added, then set beside its frequentist point estimate and confidence
+interval.
+
+```{r bayes}
+post_bb <- propagate_many(ps, suite, weights = "bootstrap", seed = 1)
+
+relabel <- function(m) {
+  m <- sub("^[^.]+\\.", "", m)
+  m <- sub("_t1\\b", "@1y", m); m <- sub("_t2\\b", "@2y", m); m
+}
+tab_bb <- posterior_table(post_bb) |> dplyr::mutate(metric = relabel(metric))
+
+## Frequentist comparators on the mean linear predictor.
+lp  <- colMeans(ps$eta)
+dfv <- tibble::tibble(time = test$time, status = test$status)
+freq_wald <- function(est, se) c(estimate = est, lower = est - 1.96 * se,
+                                 upper = est + 1.96 * se)
+ch <- concordance(Surv(time, status) ~ lp, data = dfv)
+cu <- concordance(Surv(time, status) ~ lp, data = dfv, timewt = "n/G2", ymax = tau)
+fr_harrell <- freq_wald(1 - ch$concordance, sqrt(ch$var))
+fr_uno     <- freq_wald(1 - cu$concordance, sqrt(cu$var))
+cs <- coxph(Surv(time, status) ~ lp, data = dfv)
+fr_slope <- freq_wald(unname(coef(cs)), sqrt(vcov(cs)[1, 1]))
+
+mean_draw <- list(surv2d = matrix(colMeans(ps$surv), nrow = ps$n), eta = lp,
+                  time = test$time, status = test$status,
+                  horizons = ps$horizons, n = ps$n, H = length(ps$horizons))
+boot_ci <- function(metric_fn, B = 500L, seed = 7) {
+  set.seed(seed); n <- ps$n
+  v <- replicate(B, {
+    idx <- sample.int(n, n, replace = TRUE)
+    db <- list(surv2d = mean_draw$surv2d[idx, , drop = FALSE], eta = lp[idx],
+               time = test$time[idx], status = test$status[idx],
+               horizons = ps$horizons, n = n, H = length(ps$horizons))
+    as.numeric(metric_fn(db, rep(1 / n, n))[1])
+  })
+  c(estimate = as.numeric(metric_fn(mean_draw, rep(1 / n, n))[1]),
+    stats::quantile(v, c(0.025, 0.975), names = FALSE))
+}
+fr_ibs <- boot_ci(function(d, w) metric_brier(d, w)["IBS"])
+fr_ici <- boot_ci(function(d, w) metric_ici(d, w, horizon = hH, method = "group")["ICI"])
+names(fr_ibs) <- names(fr_uno); names(fr_ici) <- names(fr_uno)
+
+freq <- tibble::tibble(
+  metric   = c("C_harrell", "C_uno", "cal_slope", "IBS", "ICI"),
+  estimate = c(fr_harrell[1], fr_uno[1], fr_slope[1], fr_ibs[1], fr_ici[1]),
+  lower    = c(fr_harrell[2], fr_uno[2], fr_slope[2], fr_ibs[2], fr_ici[2]),
+  upper    = c(fr_harrell[3], fr_uno[3], fr_slope[3], fr_ibs[3], fr_ici[3]))
+
+knitr::kable(posterior_vs_frequentist(tab_bb, freq),
+             caption = "Bayesian posterior median [95% CrI] vs frequentist [95% CI]")
+```
+
+The posterior ICI sits well above the frequentist point estimate computed on the
+posterior-mean prediction: with only tens of training events each draw is
+individually miscalibrated, and that wide, high calibration posterior is the
+small-cohort signal.
+
+## Deployment-gate probabilities
+
+```{r gate-prob}
+Jm <- unclass(post_bb); colnames(Jm) <- sub("^[^.]+\\.", "", colnames(Jm))
+P_disc <- mean(Jm[, "C_harrell"] >= C_MIN)
+P_cal  <- mean(Jm[, "cal_slope"] >= SLOPE_LO & Jm[, "cal_slope"] <= SLOPE_HI)
+P_bene <- mean(Jm[, "dNB"] >  NB_TOL)
+P_harm <- mean(Jm[, "dNB"] < -NB_TOL)
+P_gate <- mean(Jm[, "C_harrell"] >= C_MIN &
+               Jm[, "cal_slope"] >= SLOPE_LO & Jm[, "cal_slope"] <= SLOPE_HI &
+               Jm[, "dNB"] > NB_TOL)
+cat(sprintf("P(discrimination adequate) = %.2f\n", P_disc))
+cat(sprintf("P(calibration acceptable)  = %.2f\n", P_cal))
+cat(sprintf("P(net clinical benefit)    = %.2f\n", P_bene))
+cat(sprintf("P(net harm)                = %.2f\n", P_harm))
+cat(sprintf("P(JOINT deployment gate)   = %.2f  (naive product %.2f)\n",
+            P_gate, P_disc * P_cal * P_bene))
+```
+
+## Posterior decision curve and calibration check
+
+```{r curves, fig.width=5, fig.height=4.4}
+pnb <- posterior_net_benefit(ps, thresholds = seq(0.1, 0.7, 0.05),
+                             horizon = hH, weights = "bootstrap",
+                             draws = 300L, seed = 4)
+plot_net_benefit(pnb)
+
+ppc <- tryCatch(
+  ppc_calibration(ps, horizon = hH, method = "group", draws = 200L, seed = 3),
+  error = function(e) NULL)
+if (!is.null(ppc)) plot_calibration_band(ppc)
+```
+
+The gate returns a near-zero deployment probability where the discrimination
+summary alone would look only mediocre. Broken calibration drives the gate down,
+and the joint read-out surfaces it.
+
+## Citation
+
+`bayesval` is the software companion to:
+
+> Otte WM, Kampman SL, [...] *A Bayesian framework for validating survival
+> prediction models: posterior credible intervals for discrimination,
+> calibration, and clinical utility.* in prep.

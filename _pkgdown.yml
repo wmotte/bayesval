@@ -6,9 +6,10 @@ template:
 home:
   title: bayesval
   description: >
-    Bayesian validation for Cox proportional-hazards prediction models: propagate
-    finite-sample discrimination, calibration, performance, and clinical-utility
-    estimators across posterior survival draws and report the induced uncertainty.
+    Bayesian external validation of Cox proportional-hazards survival prediction
+    models: propagate finite-sample discrimination, calibration, performance, and
+    clinical-utility estimators across posterior survival draws and report the
+    induced uncertainty as credible intervals.
 
 navbar:
   structure:
@@ -24,6 +25,10 @@ navbar:
         href: articles/showcase_small_cohort.html
       - text: "Showcase: Mayo PBC cohort"
         href: articles/showcase_pbc.html
+      - text: "External validation: NCCTG lung (centre split)"
+        href: articles/worked_example_lung.html
+      - text: "External validation: colon adjuvant trial (arm split)"
+        href: articles/worked_example_colon.html
       - text: "-------"
       - text: "Worked example with the full-Bayes model (pre-rendered)"
         href: articles/worked_example_stan.html
@@ -36,6 +41,8 @@ articles:
   - worked_example
   - showcase_small_cohort
   - showcase_pbc
+  - worked_example_lung
+  - worked_example_colon
 
 reference:
 - title: Model layer
