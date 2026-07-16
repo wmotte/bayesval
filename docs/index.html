@@ -66,7 +66,7 @@
 <p><strong>Package website &amp; documentation:</strong> <a href="https://wmotte.github.io/bayesval/index.html" class="uri">https://wmotte.github.io/bayesval/index.html</a></p>
 <p><code>bayesval</code> is an R package for the <strong>external validation</strong> of survival prediction models: taking a Cox proportional-hazards model developed elsewhere and asking how well it discriminates, calibrates, and supports clinical decisions in a new — often small and event-poor — validation cohort. It keeps the familiar finite-sample validation estimators that clinicians and methodologists already use, but evaluates each one across the posterior survival draws of a Bayesian model, so every performance measure is reported as a posterior distribution with a credible interval instead of a single point estimate. A pre-specified deployment gate then reads off as one posterior probability that the model is fit for local use.</p>
 <p>The same propagation works for apparent, internal, and internal-external designs, but <strong>external validation — deciding whether a model developed elsewhere can be trusted in a new setting — is the problem the package is built around</strong>, and the one every worked example below illustrates.</p>
-<p>In practice this means that Harrell/Uno/Gonen-Heller/Antolini concordance, time-dependent AUC, calibration-in-the-large, calibration slope, ICI/E50/E90, D-calibration, IPCW Brier/IBS/IPA, R²_D, and decision-curve net benefit can be reported as posterior distributions with credible intervals. The core idea is simple: every performance estimator <code>M</code> is treated as a functional <code>M(S, data)</code> of a posterior survival object and the validation data. Evaluate the existing estimator at each posterior draw; the collection of per-draw values is the posterior distribution for that finite-sample estimator.</p>
+<p>This covers the full validation toolkit — Harrell/Uno/Gonen-Heller/Antolini concordance, time-dependent AUC, calibration-in-the-large, calibration slope, ICI/E50/E90, D-calibration, IPCW Brier/IBS/IPA, R²_D, and decision-curve net benefit — each reported as a posterior distribution with a credible interval. The core idea: every performance estimator <code>M</code> is treated as a functional <code>M(S, data)</code> of a posterior survival object and the validation data. Evaluate the existing estimator at each posterior draw; the collection of per-draw values is the posterior distribution for that finite-sample estimator.</p>
 <p>Two uncertainty sources are kept explicit: model-parameter uncertainty from the posterior survival draws, and evaluation-sample uncertainty from a Bayesian bootstrap over the validation set. No new point estimators are introduced; <code><a href="reference/propagate_metric.html">propagate_metric()</a></code> is the propagation wrapper.</p>
 <div class="section level2">
 <h2 id="status">Status<a class="anchor" aria-label="anchor" href="#status"></a>
@@ -253,11 +253,11 @@
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by Willem M. Otte, Sem L. Kampman.</p>
+
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
+
 </div>
 
     </footer>

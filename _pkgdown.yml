@@ -3,6 +3,13 @@ url: https://wmotte.github.io/bayesval/
 template:
   bootstrap: 5
 
+footer:
+  structure:
+    left: blank
+    right: blank
+  components:
+    blank: ""
+
 home:
   title: bayesval
   description: >
