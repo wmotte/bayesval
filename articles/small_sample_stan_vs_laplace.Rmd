@@ -10,20 +10,9 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
                       fig.width = 6.5, fig.height = 5)
 ```
 
-The agreement between the full-Bayes MCMC model and the Cox-Laplace
-approximation on Rotterdam→GBSG (see `vignette("worked_example")`) is a large,
-well-identified example. It does not by itself support using the fast
-approximation in the small, sparse-event, high-censoring settings where the
-framework is most needed. This article fits both backends on one small,
-high-censoring training cohort (n = 150, ~60% censored, moderate signal) and
-validates both on an independent small cohort of the same size, so any
-divergence between the true posterior and its large-sample approximation
-shows up directly in the propagated metrics, and MCMC pathologies (divergences,
-poor mixing) that a large well-identified fit would not reveal have a chance to
-appear.
+Rotterdam to GBSG validation (see `vignette("worked_example")`), comparing full MCMC sampling with the Cox model, using the latter's approximate (Laplace) posterior. These are close, reassuringly so, but based on fairly substantial numbers of patients and events, so this does not by itself support the fast approximation at the other extreme, small numbers of patients, fewer events and much censoring, where the framework is most needed. So a relatively small training set (n = 150, around 60% censored, moderate signal) and an independent test set of the same size are both analysed under each backend. Any differences due to approximation of the true posterior would show up directly in the propagated metrics. Also any problems with the MCMC sampling (divergences, poor mixing) would be more likely to be apparent than for a large, well-identified dataset.
 
-> This article requires an rstan toolchain to build and is not run by pkgdown
-> on every site rebuild; it is rendered once and checked in as a static page.
+> Requires an rstan toolchain for MCMC sampling, so not regenerated when building pkgdown site; rendered once and checked in as a static page.
 
 ```{r load}
 suppressMessages({library(survival); library(rstan); library(bayesval)})
@@ -117,10 +106,4 @@ cat(sprintf("MCMC diagnostics on the small cohort: max Rhat %.3f, min ESS %.0f, 
            obj$diagnostics$max_rhat, obj$diagnostics$min_ess, obj$diagnostics$divergences))
 ```
 
-The full-Bayes MCMC posterior and the Cox-Laplace approximation agree closely
-on discrimination, calibration slope, and IBS even at this small, sparse-event,
-high-censoring sample size, and the MCMC diagnostics show no divergences or
-mixing problems - the fast Laplace approximation is a reasonable stand-in for
-this framework's headline metrics, with the caveat that this is one cohort
-pair, not a systematic sweep (see the Part C coverage study in the source
-repository for that).
+All key statistics (discrimination, calibration slope, IBS) are very close, even at this small, sparse-event, high-censoring sample size. Sampling goes well, with no divergences or mixing problems. Encouraging: the much quicker Cox model approximation is a reasonable stand-in for these headline metrics, at least for this one pair of datasets, which is not a systematic sweep. Widening this to many datasets and scenarios is the Part C coverage study in the source repository.

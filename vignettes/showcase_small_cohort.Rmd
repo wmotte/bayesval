@@ -14,30 +14,13 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
                       fig.width = 6.5, fig.height = 5)
 ```
 
-A published survival model must be validated in a small, low-event local
-cohort (n = 120, ~55% censored) before a clinic decides whether to deploy it.
-This is the single most common real external-validation situation, and the one
-where classical point-estimate-plus-CI reporting is weakest.
+Suppose a published survival model, to be considered for local deployment subject to satisfactory validation on a small, low-event local cohort with substantial censoring (n = 120; ~55% censored). The single most common practical circumstance, and the one where point-estimate-plus-CI reporting is weakest.
 
-This showcase makes three claims and backs each with numbers from a
-self-contained simulation where the truth is known throughout, so every claim
-is checkable against an oracle. It runs on the `coxph`-Laplace backend.
+Three assertions are made and each demonstrated quantitatively, all on artificially generated data with the true model known, so every claim can be checked against an oracle. All use `coxph` with Laplace approximation.
 
-- **Act 1** - in one such cohort the frequentist read-out is ambiguous: every
-  95% CI is so wide it spans "good" and "broken", so the deploy/reject decision
-  is a coin flip. The Bayesian framework returns the decision-relevant
-  quantities directly - P(discrimination adequate), P(calibration acceptable),
-  P(net clinical benefit > 0), P(net harm) - and a single joint deployment-gate
-  probability.
-- **Act 2** - that joint gate cannot be recovered from separate
-  frequentist intervals: the metrics are correlated across the posterior, so the
-  honest joint probability differs materially from the naive product of
-  marginals.
-- **Act 3** - the Bayesian deployment probability is itself checkable: pooled
-  over many simulated cohorts with known ground truth, a higher gate probability
-  reliably means a more deploy-worthy cohort, and the gate errs on the
-  conservative side. A dichotomous frequentist rule offers no such graded,
-  checkable confidence.
+- **Act 1** - in one such cohort, none of the individual standard 95% CIs is informative, that is, each includes both acceptable and unacceptable values. So no better than tossing a coin as to whether to deploy. However, the Bayesian framework directly returns the decision-relevant probabilities, P(discrimination adequate), P(calibration acceptable), P(net clinical benefit > 0) and P(net harm), and a single joint deployment-gate probability.
+- **Act 2** - it is not possible to recover the joint gate from separate CIs around individual statistics. The statistics are correlated across the posterior, as can be seen below, so the probability of all being satisfactory will be quite different from multiplication of separate probabilities.
+- **Act 3** - this overall Bayesian probability of suitability is itself checkable. Repeating over many artificial samples, with the truth known, shows that a higher probability reliably means a more deploy-worthy cohort, erring on the conservative side. There is no way to obtain any such graduated measure from a dichotomous rule as to whether individual CIs clear their bars.
 
 ```{r load}
 suppressMessages(library(survival))
@@ -46,8 +29,7 @@ library(bayesval)
 
 ## Data-generating machinery
 
-We use a minimal proportional-hazards Weibull generator with known truth, so
-every claim below can be checked against an oracle.
+Simple PH model, Weibull, with known truth, so every claim below can be checked against an oracle.
 
 ```{r dgm}
 sim_covariates <- function(n) {
@@ -78,9 +60,7 @@ surv_weibull <- function(t, lp, shape, rate) exp(-((rate * t)^shape) * exp(lp))
 
 ## A published model and the clinic's decision rule
 
-The published model is developed on a large cohort; its coefficients and
-baseline hazard are fixed thereafter (this is what "externally validate"
-means).
+So assume a large dataset to develop the published model. It is then transported to other patients, retaining all coefficients and baseline hazard function (this is what "externally validate" means).
 
 ```{r published}
 HZ  <- c(3, 5); H5 <- 2L; TAU <- 5; PT <- 0.20  # threshold for the decision
@@ -92,10 +72,7 @@ dev <- dgm_weibull(4000, beta = DEV_BETA, shape = DEV_SHAPE, rate = DEV_RATE,
 published <- coxph(Surv(time, status) ~ x1 + x2, data = dev, x = TRUE, y = TRUE)
 ```
 
-The clinic's pre-specified deployment gate (fixed before seeing local data):
-(i) adequate discrimination, Harrell C ≥ 0.65; (ii) acceptable calibration,
-slope in [0.80, 1.25]; (iii) positive clinical value, net benefit at threshold
-`r PT` beats treat-all/none.
+The clinic's pre-specified deployment gate, fixed before seeing local data: sufficient discrimination, Harrell C ≥ 0.65; reasonable calibration, slope in [0.80, 1.25]; and desirability of using to guide treatment decisions, that is, greater net benefit than both treating all and none at threshold probability `r PT`.
 
 ```{r gate-bars}
 C_MIN <- 0.65; SLOPE_LO <- 0.80; SLOPE_HI <- 1.25
@@ -169,15 +146,7 @@ gate_suite <- list(harrell = metric_harrell_c,
 
 ## A fair frequentist comparator: the paired bootstrap joint gate
 
-The dichotomous rule below (all three 95% intervals clear their bars) is a
-deliberately conservative reporting-practice reference. A stronger, fairer
-comparator resamples the evaluation cohort once per replicate and recomputes
-every gate-critical metric on that same replicate, so a frequentist analyst
-can also express the joint deployment event as a bootstrap frequency - the
-direct classical analogue of the Bayesian gate probability. It preserves the
-dependence across metrics that separate marginal intervals discard.
-`with_preserved_rng()` shields the global stream so this additive comparator
-never perturbs the reproducible draws of the rest of the vignette.
+Simple frequentist criterion, a deliberately conservative reporting-practice reference: all three 95% CIs of individual statistics must be entirely on the desirable side of their bars. A stronger, fairer comparator bootstraps the assessment sample, with all gate-critical quantities calculated on the same bootstrap replicate, hence giving a bootstrap frequency of all being satisfactory simultaneously, the direct classical analogue of the Bayesian gate probability. This retains correlations between quantities, unlike separate CIs. To avoid disturbing the reproducible random numbers of the rest of the vignette, this comparator runs inside `with_preserved_rng()`.
 
 ```{r fair-comparator}
 with_preserved_rng <- function(expr) {
@@ -249,9 +218,7 @@ gate_auc_ci <- function(df, col, B = 2000L, seed = 12L) {
 
 ## Act 1 - one small local cohort: frequentist ambiguity vs Bayesian answer
 
-Local truth: same signal, but a heavier baseline hazard than the development
-population (a sicker clinic) - the published model is mildly mis-calibrated
-here, which is realistic external validation, not a broken model.
+Local truth: the same strength of prognostic factors, but higher baseline hazard than the development population, corresponding to a sicker group of patients and so mild miscalibration. So a generally good model being realistically assessed, not a broken one.
 
 ```{r act1-cohort}
 LOC_RATE <- 0.20
@@ -322,8 +289,7 @@ P_gate_boot <- paired_boot_gate(local$time, local$status, lp, mean_draw$surv2d,
 cat(sprintf("Paired-bootstrap joint-gate frequency = %.3f\n", P_gate_boot))
 ```
 
-All three metrics are recomputed on each bootstrap replicate; this is the
-direct classical analogue of the Bayesian gate probability below.
+That is, all three metrics recalculated on each bootstrap replicate sample: the direct classical analogue of the Bayesian gate probability below.
 
 ## Bayesian read-out: posteriors and deployment probabilities
 
@@ -356,8 +322,7 @@ cat(sprintf("[oracle] C=%.2f slope=%.2f dNB=%+.3f => %s\n", orc1$C, orc1$slope,
             orc1$dNB, if (orc1$worthy) "truly deploy-worthy" else "NOT deploy-worthy"))
 ```
 
-The joint gate reaches the correct low-probability conclusion where every
-frequentist interval was individually undecided.
+So the joint gate gives the correct low probability of meeting all criteria for deployment, where none of the individual frequentist intervals was conclusive.
 
 ## Act 2 - the joint gate is not recoverable from separate intervals
 
@@ -374,15 +339,9 @@ cat(sprintf("posterior corr(slope, dNB) = %+.2f ; corr(C, slope) = %+.2f\n",
             rho_cs, rho_cc))
 ```
 
-The metrics move together across the posterior; a set of separate frequentist
-intervals discards this dependence. A paired bootstrap that recomputes
-every metric on the same replicate does preserve this dependence and yields a
-comparable joint frequency; the Bayesian gate adds model-parameter uncertainty
-and a coherent posterior read-out.
+Clearly correlated across the posterior, so information is lost considering only separate CIs. A paired bootstrap, calculating all metrics on each replicate sample, preserves this and gives a comparable joint frequency. The Bayesian gate additionally allows for uncertainty over the underlying model parameters, all coherently combined.
 
-The joint posterior of the two gate-critical metrics, with the gate bars drawn
-as dashed lines. The passing draws are the `r sprintf("%.0f%%", 100 * P_gate)`
-of the posterior that clears all three criteria at once.
+Joint posterior of the two key statistics, with the gate bars for deployment drawn as dashed lines. So `r sprintf("%.0f%%", 100 * P_gate)` of posterior draws satisfy all three criteria at once.
 
 ```{r act2-fig, fig.width=6.5, fig.height=5.5}
 gate_lab <- c("gate passes (also dNB > 0)", "gate fails")
@@ -408,8 +367,7 @@ ggplot2::ggplot(joint_df, ggplot2::aes(cal_slope, C_harrell, fill = gate)) +
 
 ## Act 3 - the deployment probability is checked against known truth
 
-Configurations spanning truly-worthy to truly-unworthy local cohorts, with a
-demo-scale sweep (kept small so this vignette builds quickly).
+Range of local cohorts, covering those truly worthy to truly not. Not a great number generated, so that this vignette builds quickly.
 
 ```{r act3}
 CONFIGS <- list(
@@ -502,17 +460,9 @@ cat(sprintf("Probability Brier score vs truth: Bayesian gate = %.3f, paired boot
             brier_bayes, brier_boot))
 ```
 
-Both graded gates rank cohorts by worthiness; the dichotomous rule gives an
-over/under-confident yes/no only at this sample size. Both are also
-*conservative*: the mean stated probability sits below the base rate of truly
-worthy cohorts. That is expected, and it is why the 45-degree line is not the
-reference - the truth here comes from six hand-picked configurations in a fixed
-50/50 split, which is not the model's prior, and posterior probabilities are
-calibrated only when averaged over the prior that generated the truth.
+Both graded gates rank cohorts by true worthiness, whereas the dichotomous rule gives an over- or under-confident yes/no only at this sample size. Both are *conservative*, that is, the mean stated probability is lower than the base rate of truly worthy cohorts. Unsurprisingly so, and the 45-degree line is not the reference: the "truth" here comes from six hand-picked configurations, equally split 50/50 between worthy and unworthy, which is not the model's prior, whereas posterior probabilities are only calibrated on average over the prior that generated the truth.
 
-Bins are quantiles of the gate probability, so each holds the same number of
-cohorts; the vertical bars are cohort-bootstrap 95% intervals on the empirical
-worthy fraction. The dashed 45-degree line is drawn for orientation only.
+Dividing into equal-numbered groups according to quantiles of gate probability. Empirical proportion actually worthy, with cohort-bootstrap 95% CI as vertical bars. Dashed 45 degree line shown for orientation only.
 
 ```{r act3-fig, fig.width=6.5, fig.height=5.5}
 meth_lab <- c("Bayesian gate", "paired bootstrap gate")
@@ -539,9 +489,7 @@ ggplot2::ggplot(rel_both, ggplot2::aes(mid, emp, colour = method)) +
   theme_bayesval()
 ```
 
-The Bayesian deployment probability ranks cohorts by true worthiness - a graded,
-checkable confidence a dichotomous frequentist rule cannot offer. The
-paired-bootstrap gate is overlaid as the fair frequentist comparator.
+So the Bayesian probability ranks cohorts by true worthiness, a graded, checkable confidence that a dichotomous frequentist rule cannot offer. Overlaid for comparison is the paired-bootstrap gate, the fair frequentist comparator.
 
 ## Citation
 

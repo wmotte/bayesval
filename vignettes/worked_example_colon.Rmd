@@ -14,17 +14,9 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
                       fig.width = 6.5, fig.height = 5)
 ```
 
-This article externally validates a Cox model on the colon adjuvant-therapy
-trial (`survival::colon`, death endpoint). We develop the model on the
-observation and levamisole arms and validate it on the levamisole-plus-5-FU arm.
-That arm receives the effective therapy, so its baseline risk is lower: a
-case-mix and transport shift that calibration-in-the-large and the calibration
-slope pick up while discrimination alone misses it.
+Cox model developed on the colon adjuvant-therapy trial (`survival::colon`, death endpoint), using patients observed or given levamisole only, and externally validated on the levamisole-plus-5-FU arm. That arm receives the effective therapy and so has a lower baseline risk, a shift in case-mix and transport. This is detected by calibration-in-the-large and the calibration slope, but not by discrimination alone.
 
-The example also shows why separate marginal intervals cannot answer the
-deployment question. Harrell C and the calibration slope move together across
-the posterior, so the joint gate probability sits well above the product of the
-three marginal pass-probabilities.
+Also shows why separate marginal intervals cannot answer the deployment question: Harrell C and slope clearly move together across the posterior, so considerably greater probability of all being satisfactory than the product of the three marginal pass-probabilities.
 
 ```{r load}
 suppressMessages({library(survival); library(dplyr)})
@@ -34,8 +26,7 @@ YEAR <- 365.25
 
 ## Prepare data and split by treatment arm
 
-`colon` has two rows per patient (recurrence and death); we keep the death
-endpoint. The retained covariates are analysed complete-case.
+`colon` contains 2 observations per patient, time to recurrence and death. Only the latter retained. Retained covariates analysed complete-case.
 
 ```{r data}
 colon_cc <- colon |>
@@ -62,9 +53,7 @@ fit <- coxph(Surv(time, status) ~ age + sex + obstruct + adhere + nodes +
 
 ## Posterior survival object and the deployment gate
 
-The gate is the same three-part rule as the other examples, with the headline
-horizon at 5 years: Harrell C >= 0.65, calibration slope in [0.80, 1.25], and
-positive net benefit at a 20% risk threshold.
+As in the other examples, the gate has 3 features to satisfy all at once, now with a 5-year headline time horizon: Harrell C greater than or equal to 0.65; calibration slope between 0.80 and 1.25; and positive net benefit at a 20% risk threshold.
 
 ```{r gate}
 ps <- psurv_external(fit, test, time = "time", status = "status",
@@ -141,9 +130,7 @@ knitr::kable(posterior_vs_frequentist(tab_bb, freq),
              caption = "Bayesian posterior median [95% CrI] vs frequentist [95% CI]")
 ```
 
-Discrimination is adequate, and the transport shows up in calibration: mean
-predicted risk sits above observed and the slope is below one, so the model
-over-predicts risk on the treated arm.
+Adequate discrimination. Calibration reflects the transport: mean predicted risk above observed, and a slope below 1. Hence over-estimation of risks for those receiving treatment.
 
 ## Deployment-gate probabilities
 
@@ -167,11 +154,7 @@ cat(sprintf("corr(C, slope)             = %.2f\n", rho_Cslope))
 
 ## Joint posterior of the two gate-critical axes
 
-Each point is one posterior draw on the Harrell-C and calibration-slope plane.
-Because C and the slope are positively correlated, the passing draws form a
-diagonal band inside the gate region instead of scattering independently. That
-dependence is why the joint probability exceeds the product of the marginals,
-and why a set of separate intervals cannot recover it.
+Plotted are individual posterior draws of Harrell C and calibration slope. These are positively correlated, so passing draws lie along a diagonal band in the area defined by the gates, instead of scattering independently. Hence the probability of satisfying all criteria simultaneously exceeds the product of the marginal probabilities, and no set of separate intervals can recover it.
 
 ```{r joint, fig.width=5.2, fig.height=4.6}
 gate_lab <- c("gate passes (also ΔNB > 0)", "gate fails")
@@ -213,9 +196,7 @@ ppc <- tryCatch(
 if (!is.null(ppc)) plot_calibration_band(ppc)
 ```
 
-Under the illustrative gate these criteria do not support deployment before the
-baseline risk is recalibrated. The joint read-out recovers one coherent
-probability from three individually inconclusive measures.
+Under this illustrative gate, these properties would not warrant deployment of the model as it stands, that is, without recalibrating the baseline risk. It is useful to be able to combine these 3 measures, none conclusive on its own, into one coherent summary probability.
 
 ## Citation
 

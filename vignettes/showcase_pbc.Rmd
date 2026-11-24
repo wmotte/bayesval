@@ -14,16 +14,9 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
                       fig.width = 6.5, fig.height = 5)
 ```
 
-This vignette mirrors `vignette("showcase_small_cohort")` but on real clinical
-data. We use the historic Mayo Clinic Primary Biliary Cholangitis (PBC) dataset
-to develop a standard Cox model on the randomized trial participants (n = 312,
-125 events) and externally validate it on the independent non-randomized
-eligible patients (n = 106, 36 events).
+Similar to `vignette("showcase_small_cohort")`, but on actual clinical data. Fit a standard Cox model to the randomised trial participants (n = 312; 125 events) in the historic Mayo Clinic Primary Biliary Cholangitis (PBC) dataset, and externally validate it on the independent, eligible but non-randomised patients (n = 106; 36 events).
 
-With only 36 events in the validation cohort, classical frequentist confidence
-intervals for separate performance measures are wide, often leading to ambiguous
-local-use decisions. The posterior workflow yields a coherent deployment gate
-probability instead.
+It can be seen that separate frequentist CIs would be quite imprecise with only 36 events in the validation cohort, and so often inconclusive as to whether acceptable for local use. However, the posterior summarises all coherently as a single deployment gate probability.
 
 ```{r load}
 suppressMessages(library(survival))
@@ -163,9 +156,7 @@ cat(sprintf("P(net harm)                = %.2f\n", P_harm))
 cat(sprintf("P(JOINT deployment gate)   = %.2f\n", P_gate))
 ```
 
-Even in this small, real validation cohort, the coherent joint posterior turns
-several individually ambiguous frequentist intervals into a single deployment
-probability.
+So even in this small, real validation cohort, the coherent joint posterior summarises several individually ambiguous frequentist intervals under one probability of being suitable for deployment.
 
 ## Citation
 

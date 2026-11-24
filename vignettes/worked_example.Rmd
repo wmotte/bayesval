@@ -15,16 +15,9 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
                       fig.width = 6.5, fig.height = 5)
 ```
 
-This vignette applies the Bayesian validation framework end-to-end. We train a
-prognostic survival model on the Rotterdam breast-cancer cohort and
-externally validate it on the GBSG cohort at a clinically meaningful
-5-year horizon. Every validation quantity is reported as a posterior
-median with a 95 % credible interval, next to the usual frequentist estimate.
+General end-to-end demonstration of the approach. Fitting a prognostic survival model to the Rotterdam breast-cancer cohort, and externally validating it on the GBSG cohort at a clinically meaningful 5-year horizon. All validation quantities summarized by posterior median and 95% credible interval, compared to standard frequentist estimates.
 
-> The analysis runs on the `coxph`-Laplace backend so it reproduces with only
-> the `survival` package. The primary full-Bayes path (`backend = "stan_pwexp"`)
-> is a drop-in replacement for the model-fitting step; everything downstream is
-> unchanged because it consumes only the model-agnostic `psurv` object.
+> Runs on the `coxph`-Laplace backend, requiring only `survival`. Trivially extended to the primary full-Bayes path, simply changing the model-fitting step to `backend = "stan_pwexp"`, with no other changes required, since everything downstream uses only the model-agnostic `psurv` object.
 
 ```{r load}
 library(survival)
@@ -34,9 +27,7 @@ YEAR <- 365.25
 
 ## Data: harmonising the two cohorts
 
-Recurrence-free survival is the Rotterdam endpoint (recurrence or death); GBSG
-records it directly. We harmonise the shared covariates (tumour size is
-categorised to match Rotterdam's factor).
+Recurrence-free survival (time to recurrence or death) is the Rotterdam endpoint, as recorded directly for GBSG. Other covariates in common between the two datasets are harmonised, re-categorising GBSG tumour size to match Rotterdam's.
 
 ```{r data}
 prep <- function(df, time, status) {
@@ -59,7 +50,7 @@ horizons <- c(2, 5); h5 <- 2L; tau <- 5
 
 ## Model layer: posterior survival on the external cohort
 
-Fit on Rotterdam, then evaluate the fitted model's Laplace posterior on GBSG.
+Fitting to Rotterdam, propagating draws from the Laplace posterior to GBSG.
 
 ```{r fit}
 form <- Surv(time, status) ~ age + nodes + grade3 + size + logpgr + hormon + meno
@@ -71,9 +62,7 @@ ps
 
 ## Posterior validation suite
 
-Each metric is propagated across the posterior with the Bayesian bootstrap, so
-the credible interval carries both model-parameter and evaluation-sample
-uncertainty.
+All metrics propagated over draws from the approximate posterior, with Bayesian bootstrap over the assessment sample, so the credible interval reflects uncertainty from both model parameters and evaluation sample.
 
 ```{r suite}
 suite <- list(
@@ -93,10 +82,7 @@ knitr::kable(dplyr::select(tab, metric, summary), caption =
              "Posterior median [95% CrI] at 5 years (param + bootstrap)")
 ```
 
-Discrimination is moderate (Harrell C ≈ 0.66, Uno C ≈ 0.65). The calibration
-slope < 1 and ICI ≈ 0.09 flag real external miscalibration - the model's
-risks need recalibration for this cohort, a conclusion discrimination alone
-cannot give.
+Moderate discrimination (Harrell C around 0.66, Uno C around 0.65). Real external miscalibration, with slope below 1 and ICI around 0.09. So the model's risks need recalibration before applying to this cohort; this would not be clear from measures of discrimination.
 
 ## Calibration as a posterior predictive check
 
@@ -114,9 +100,7 @@ pnb <- posterior_net_benefit(ps, thresholds = seq(0.1, 0.7, 0.05),
 plot_net_benefit(pnb)
 ```
 
-The model's net-benefit band lies above both "treat all" and "treat none" across
-clinically relevant thresholds, so it is decision-analytically useful despite the
-imperfect calibration.
+However, the net-benefit band still lies above both treating all and treating none over clinically relevant thresholds, so it is decision-analytically useful despite the imperfect calibration.
 
 ## Headline: Bayesian vs frequentist
 
@@ -140,13 +124,9 @@ knitr::kable(posterior_vs_frequentist(tab, freq),
              caption = "Bayesian median [95% CrI] vs frequentist estimate [95% CI]")
 ```
 
-The Bayesian posterior medians reproduce the frequentist point estimates (they
-use the same estimators), while the credible intervals additionally propagate
-model-parameter uncertainty - the coherent, probabilistic replacement for the
-usual bootstrap CI.
+As expected, posterior medians reproduce the standard estimates (same estimators). CIs additionally reflect uncertainty over underlying parameters, the coherent, probabilistic replacement for a bootstrapped CI.
 
-> The primary full-Bayes MCMC path (`backend = "stan_pwexp"`) and internal
-> optimism correction are covered in the package's other articles.
+> Full MCMC sampling (`backend = "stan_pwexp"`) and optimism correction for internal validation are covered in the package's other articles.
 
 ## Citation
 

@@ -1,42 +1,16 @@
 # bayesval
 
-`bayesval` is an R package for the **external validation** of survival
-prediction models: taking a Cox proportional-hazards model developed elsewhere
-and asking how well it discriminates, calibrates, and supports clinical
-decisions in a new — often small and event-poor — validation cohort. It keeps
-the familiar finite-sample validation estimators that clinicians and
-methodologists already use, but evaluates each one across the posterior survival
-draws of a Bayesian model, so every performance measure is reported as a
-posterior distribution with a credible interval instead of a single point
-estimate. A pre-specified deployment gate then reads off as one posterior
-probability that the model is fit for local use.
+`bayesval` propagates a range of standard performance measures over posterior draws from the parameters of a fitted Bayesian model, for assessment on a finite sample. Its main focus is the **external validation** of a survival model. Given a Cox proportional-hazards model fitted to other patients, one wants to know its discrimination, calibration and decision utility in a further sample of patients, often quite small and so with few events. Each standard finite-sample statistic is computed in the usual way over each posterior draw, resulting in posteriors and credible intervals (CIs) for all quantities of interest, in place of single values. Hence assessment against a pre-specified deployment gate for a given clinical setting reduces to one posterior probability of acceptability.
 
-The same propagation works for apparent, internal, and internal-external
-designs, but **external validation — deciding whether a model developed
-elsewhere can be trusted in a new setting — is the problem the package is built
-around**, and the one every worked example below illustrates.
+The same propagation extends naturally to apparent performance and internal and internal-external validation, all supported. However, **deciding on the suitability of a model generated from another source and patient population for local application, that is, external validation, is the primary motivation**, and all examples shown here externally validate a model developed elsewhere.
 
-This covers the full validation toolkit — Harrell/Uno/Gonen-Heller/Antolini
-concordance, time-dependent AUC, calibration-in-the-large, calibration slope,
-ICI/E50/E90, D-calibration, IPCW Brier/IBS/IPA, R²_D, and decision-curve net
-benefit — each reported as a posterior distribution with a credible interval.
-The core idea: every performance estimator `M` is treated as a functional
-`M(S, data)` of a posterior survival object and the validation data. Evaluate
-the existing estimator at each posterior draw; the collection of per-draw values
-is the posterior distribution for that finite-sample estimator.
+All of the following can be assessed: Harrell C-index, Uno, Gonen-Heller, Antolini statistics; time-dependent area under ROC curve; calibration-in-the-large; calibration slope; ICI; E50, E90; D-calibration; IPCW Brier score, integrated Brier score and IPA; R²_D; decision-curve net benefit. As above, each will be represented by a posterior distribution with credible interval. In general, any such statistic `M` of interest can be written as a functional `M(S, data)` of a posterior survival object and the validation data. So simply evaluating the standard estimator over each posterior draw in turn gives a set of posterior draws of the desired statistic.
 
-Two uncertainty sources are kept explicit: model-parameter uncertainty from the
-posterior survival draws, and evaluation-sample uncertainty from a Bayesian
-bootstrap over the validation set. No new point estimators are introduced;
-`propagate_metric()` is the propagation wrapper.
+There will therefore be posterior uncertainty due to uncertainty over the underlying model parameters, as well as due to sampling variability of the validation set, implemented as a Bayesian bootstrap. These two sources of variation are maintained separately. There is no proposal of any novel point estimators; standard statistics are merely evaluated over the posterior. See `propagate_metric()`, the propagation wrapper.
 
 ## Status
 
-`bayesval` is a research package under active development and accompanies the
-survival-validation manuscript listed below. The fast examples use the
-`coxph` backend and run without Stan. Full Bayesian MCMC examples use the
-`stan_pwexp` backend and require a working `rstan` toolchain; they may take
-several minutes.
+`bayesval` is currently a research code package, expected to evolve further, and accompanies the survival-validation manuscript listed below. All fast examples can be run using just the `coxph` backend, with no dependence on Stan or other MCMC sampling. Longer examples requiring full MCMC sampling use the `stan_pwexp` backend and require a working `rstan` toolchain; run times may be several minutes.
 
 ## Installation
 
@@ -47,9 +21,7 @@ Install the package from GitHub:
 remotes::install_github("wmotte/bayesval")
 ```
 
-The modelling core needs only the imported package dependencies, including
-`survival`, `dplyr`, `purrr`, `tibble`, and `ggplot2`. Optional backends and
-comparators need additional Suggested packages:
+Only imports are required for the modelling core; in addition to `survival`, including the tidyverse set `dplyr`, `purrr`, `tibble` and `ggplot2`. Optional backends to propagate from, or comparators, require further dependencies, as listed in Suggested:
 
 ```r
 install.packages(c("posterior", "loo", "BART", "riskRegression", "pec",
@@ -59,9 +31,7 @@ install.packages(c("posterior", "loo", "BART", "riskRegression", "pec",
 install.packages("rstan")
 ```
 
-Install optional packages only for the backend or metric family you intend to
-use. Stan setup is the slowest part of the toolchain; the quick start below uses
-only the survival-based `coxph` path.
+It would normally be expected that only relevant ones would be installed, according to the desired backends and metric families. Setting up dependencies to allow Stan models will be the longest task, although of course this can be skipped entirely, as for the quick start below, which uses only the survival-based `coxph` path.
 
 ## Quick start
 
@@ -87,17 +57,11 @@ ppc_calibration(ps, horizon = 2)$ppp                            # calibration PP
 posterior_net_benefit(ps)$p_useful                              # decision-curve layer
 ```
 
-`posterior_table()` returns one row per metric with the posterior mean, median,
-credible interval, draw counts, and a reliability flag. Adding
-`weights = "bootstrap"` widens the target from model-parameter uncertainty alone
-to model plus validation-sample uncertainty. `ppc_calibration()` returns a
-posterior predictive p-value for calibration at the requested horizon.
+`posterior_table()` returns one line for each statistic assessed, giving mean and median over the posterior, credible interval, draw counts and whether reliable. If generated using `weights = "bootstrap"`, uncertainty will be due to variation both over underlying parameters and over the validation sample, not parameters alone. `ppc_calibration()` gives a posterior predictive check p-value for calibration at the requested horizon.
 
 ## Model backends
 
-Every backend returns the same model-agnostic `psurv` object: an `[S x n x H]`
-posterior survival array plus the linear predictor. Downstream metrics are
-therefore backend-agnostic.
+A common, model-agnostic object `psurv` is returned from any backend: posterior draws of survival probability, dimension `[S x n x H]`, and corresponding linear predictor. All metrics are then calculated from this common representation, independent of backend.
 
 | backend | needs | use when |
 |---|---|---|
@@ -107,10 +71,7 @@ therefore backend-agnostic.
 | `bart` | `BART` | you want a nonparametric Bayesian survival comparator |
 | `stan_surv` | `rstanarm` with `stan_surv` | aspirational/conditional; not available in the CRAN `rstanarm` release |
 
-MCMC fits are gated by `check_mcmc_gate()` before any metric is reported. The
-gate checks split-Rhat, effective sample size, and divergent transitions.
-`prior_sensitivity()` refits under several log-hazard-ratio prior scales to
-check robustness.
+MCMC fits must pass convergence checks (`check_mcmc_gate()`; split-Rhat, ESS, number of divergent transitions) before any metric is reported. The effect of using more or less informative priors can be investigated by `prior_sensitivity()`, refitting with a range of prior scales for log-HRs.
 
 ## Documentation
 
@@ -121,12 +82,9 @@ The pkgdown site is the main reference:
 - local entry point for writing a new metric: `?propagate_metric`
 - full package help: `help(package = "bayesval")`
 
-Posterior metric objects have `summary()` methods that report the median,
-credible interval, finite-draw counts, and an unreliability flag when more than
-5% of draws are non-finite.
+The `summary()` method for posterior metric objects gives median and CI over all finite values, number finite out of total number of draws, and flags the result as unreliable if greater than 5% non-finite.
 
-Worked examples live in `vignettes/`, and most are external validations on
-public survival cohorts:
+Worked examples, mostly external validations on public survival cohorts, can be found in `vignettes/`:
 
 - `worked_example.R` — Rotterdam → GBSG breast cancer (the headline example)
 - `showcase_pbc.R` — Mayo PBC, randomized → non-randomized patients
@@ -134,10 +92,7 @@ public survival cohorts:
 - `worked_example_lung.R` — NCCTG lung, split by recruiting centre
 - `worked_example_colon.R` — colon adjuvant trial, split by treatment arm
 
-`showcase_small_cohort.R` runs the deployment-gate showcase on a small simulated
-cohort with a known oracle. Heavier Stan articles (`worked_example_stan.R`,
-`small_sample_stan_vs_laplace.R`) are pre-rendered outside the normal pkgdown
-build; see `articles/README.md` for that workflow.
+`showcase_small_cohort.R` applies criteria for acceptable deployment to an artificially generated small sample, knowing the true underlying model. Heavier Stan articles (`worked_example_stan.R`, `small_sample_stan_vs_laplace.R`) involve more extensive Stan sampling and are therefore statically pre-generated, rather than regenerated each time the pkgdown site is built (see `articles/README.md`).
 
 ## Development checks
 
@@ -149,9 +104,8 @@ _R_CHECK_FORCE_SUGGESTS_=false R CMD check --no-manual --ignore-vignettes \
   bayesval_0.1.0.tar.gz
 ```
 
-`_R_CHECK_FORCE_SUGGESTS_=false` is useful on machines without the heavier
-Suggested packages. A complete CRAN-style check should install all Suggested
-packages first.
+If the heavier Suggested dependencies are not installed, it is useful to set
+`_R_CHECK_FORCE_SUGGESTS_=false`. All Suggested packages should be installed prior to a full CRAN-style check.
 
 ## Citation and reproducibility
 

@@ -11,16 +11,9 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
                       fig.width = 6.5, fig.height = 5)
 ```
 
-`vignette("worked_example")` runs the Rotterdam → GBSG validation on the
-`coxph`-Laplace backend so it reproduces with only the `survival` package.
-Because CRAN `rstanarm` ships no `stan_surv`, this article instead fits the
-package's primary full-Bayes model - the `rstan` piecewise-exponential PH
-model (`backend = "stan_pwexp"`) - on the same cohort pair and compares the
-full-Bayes MCMC posterior to the Cox-Laplace approximation and the plain
-frequentist estimate.
+To avoid requirement for Stan dependencies, `vignette("worked_example")` uses the `coxph` implementation with Laplace approximation to the posterior, reproducing the Rotterdam-GBSG example requiring only `survival`. As the current CRAN version of `rstanarm` does not include `stan_surv`, this article instead uses the package's primary full-Bayes model, the `rstan` piecewise exponential PH model fitted by MCMC (`backend = "stan_pwexp"`), again on the same two groups of patients. Results are compared to the Cox model approximate posterior, and to standard frequentist estimates.
 
-> This article requires an rstan toolchain to build and is not run by pkgdown
-> on every site rebuild; it is rendered once and checked in as a static page.
+> Requires an rstan toolchain for MCMC sampling, so not regenerated when building pkgdown site; rendered once and checked in as a static page.
 
 ```{r load}
 suppressMessages({library(survival); library(rstan); library(bayesval)})
@@ -30,8 +23,7 @@ YEAR <- 365.25
 
 ## Data: harmonising the two cohorts
 
-Same harmonisation as `vignette("worked_example")`: recurrence-free survival
-as the Rotterdam endpoint, GBSG's tumour size categorised to match.
+As in `vignette("worked_example")`, recurrence-free survival (time to recurrence or death) for Rotterdam patients, with GBSG tumour size categorised to correspond.
 
 ```{r data}
 prep <- function(df, time, status) {
@@ -63,8 +55,7 @@ cat(sprintf("fitted in %.0f s\n", difftime(Sys.time(), t0, units = "secs")))
 obj
 ```
 
-The MCMC diagnostics gate (`check_mcmc_gate()`: Rhat < 1.01, adequate ESS, no
-divergences) must pass before any metric below is trustworthy.
+All criteria of `check_mcmc_gate()` must be met (all Rhats < 1.01; sufficient ESS; no divergences) before any metric below can be trusted.
 
 ```{r gate}
 stopifnot(obj$diagnostics$max_rhat < 1.05)
@@ -119,10 +110,7 @@ knitr::kable(posterior_vs_frequentist(tab, freq),
              caption = "Full-Bayes median [95% CrI] vs frequentist estimate [95% CI]")
 ```
 
-The full-Bayes MCMC posterior reproduces the frequentist point estimates and
-agrees closely with the Cox-Laplace approximation reported in
-`vignette("worked_example")`, with credible intervals that carry the genuine
-posterior - not its large-sample Laplace stand-in.
+The full posterior reproduces the frequentist point estimates and is very similar to results from the Cox model with approximate posterior in `vignette("worked_example")`, but with CIs based on the full posterior distribution, not its large-sample Laplace stand-in.
 
 ## PPC and decision curve (full-Bayes)
 
@@ -133,9 +121,9 @@ ppc <- ppc_calibration(ps, horizon = h5, method = "auto", draws = 200L, seed = 3
 plot_calibration_band(ppc)
 ```
 
-The posterior predictive p-value is `r sprintf("%.2f", ppc$ppp)`.
+Posterior predictive p-value = `r sprintf("%.2f", ppc$ppp)`.
 
-The GBSG decision curve at 5 years:
+Decision curve at 5 years, GBSG:
 
 ```{r dca}
 pnb <- posterior_net_benefit(ps, thresholds = seq(0.1, 0.7, 0.05), horizon = h5,

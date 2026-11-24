@@ -14,16 +14,9 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
                       fig.width = 6.5, fig.height = 5)
 ```
 
-This article externally validates a Cox model on the NCCTG advanced-lung-cancer
-cohort (`survival::lung`). The cohort is small and event-rich with some missing
-covariates, so it exercises the small-cohort deployment gate. We develop the
-model on the three largest recruiting institutes and validate it on the
-remaining institutes: a centre split keeps the validation cohort independent of
-development.
+External validation of a Cox model on the NCCTG advanced lung cancer cohort (`survival::lung`). This is a small dataset, with a high proportion of events and some missing covariate data, so it exercises the small-cohort deployment gate. Fitting was done using the three largest recruiting institutes; all other institutes form the validation set, a centre split ensuring independence from development.
 
-Discrimination here is modest and calibration is broken. A discrimination
-summary on its own looks only mediocre; the joint posterior separates the two
-and returns a clear low-deployment answer.
+Modest C, broken calibration. Although C by itself looks only mediocre, the joint posterior separates the two and gives an unambiguous low probability of meeting all requirements.
 
 ```{r load}
 suppressMessages({library(survival); library(dplyr)})
@@ -33,10 +26,7 @@ YEAR <- 365.25
 
 ## Prepare data and split by recruiting centre
 
-`status` is coded 1 = censored, 2 = dead; we recode it to the framework's 0/1.
-The meal-calorie variable is dropped for excess missingness (the point where the
-multiple-imputation options in the framework would apply), and the retained
-covariates are analysed complete-case.
+`status` is coded 1 = censored, 2 = dead, changed here to the framework's 0 and 1. There was too much missing data on meal calories, so it has been dropped; this is where the framework's multiple imputation options would apply. Retained covariates are analysed complete-case.
 
 ```{r data}
 lung_cc <- lung |>
@@ -66,10 +56,7 @@ fit <- coxph(Surv(time, status) ~ age + sex + ph.ecog + ph.karno + wt.loss,
 
 ## Posterior survival object and the deployment gate
 
-The fitted model is carried onto the validation cohort as a posterior survival
-object. The gate is fixed before the read-out: adequate discrimination
-(Harrell C >= 0.65), acceptable calibration (slope in [0.80, 1.25]), and
-positive net benefit at a 20% risk threshold. The headline horizon is 1 year.
+The fitted model is carried onto the validation cohort as a posterior object giving survival probabilities. The gate, fixed before the read-out, requires simultaneously: Harrell C at least 0.65, slope in [0.80, 1.25] and positive net benefit at a 20% risk threshold. Headline horizon 1 year.
 
 ```{r gate}
 ps <- psurv_external(fit, test, time = "time", status = "status",
@@ -100,9 +87,7 @@ suite <- list(
 
 ## Bayesian read-out: posteriors and frequentist comparators
 
-Every measure is propagated across the posterior draws with the Bayesian
-bootstrap added, then set beside its frequentist point estimate and confidence
-interval.
+Summary statistics over all posterior draws, with the Bayesian bootstrap added, are set beside the usual frequentist point estimate and confidence interval.
 
 ```{r bayes}
 post_bb <- propagate_many(ps, suite, weights = "bootstrap", seed = 1)
@@ -154,10 +139,7 @@ knitr::kable(posterior_vs_frequentist(tab_bb, freq),
              caption = "Bayesian posterior median [95% CrI] vs frequentist [95% CI]")
 ```
 
-The posterior ICI sits well above the frequentist point estimate computed on the
-posterior-mean prediction: with only tens of training events each draw is
-individually miscalibrated, and that wide, high calibration posterior is the
-small-cohort signal.
+The posterior ICI is considerably higher than the frequentist point estimate, based on the posterior-mean prediction. Given only tens of training events, each individual draw is miscalibrated; that wide, high calibration posterior is the small-cohort signal.
 
 ## Deployment-gate probabilities
 
@@ -192,9 +174,7 @@ ppc <- tryCatch(
 if (!is.null(ppc)) plot_calibration_band(ppc)
 ```
 
-The gate returns a near-zero deployment probability where the discrimination
-summary alone would look only mediocre. Broken calibration drives the gate down,
-and the joint read-out surfaces it.
+Hence overall probability of deployment is very small, in contrast to the fairly non-dramatic conclusion from considering discrimination alone. The poor calibration is reflected in the low overall probability of deployment returned when considering the joint distribution.
 
 ## Citation
 
